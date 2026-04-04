@@ -1,0 +1,77 @@
+{ self, inputs, ... }: {
+
+	flake.nixosModules.chopperConfiguration = { config, pkgs, lib, ... }: {
+		imports = [
+			self.nixosModules.chopperHardware
+			self.nixosModules.niri
+		];
+
+		nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+		# Use the systemd-boot EFI boot loader.
+		boot.loader.systemd-boot.enable = true;
+		boot.loader.efi.canTouchEfiVariables = true;
+		# Use latest kernel.
+		boot.kernelPackages = pkgs.linuxPackages_latest;
+
+		networking.hostName = "chopper"; # Define your hostname.
+
+		# Configure network connections interactively with nmcli or nmtui.
+			networking.networkmanager.enable = true;
+
+		# Set your time zone.
+		time.timeZone = "America/Merida";
+
+		# Enable CUPS to print documents.
+		services.printing.enable = true;
+
+		# Enable sound.
+		# services.pulseaudio.enable = true;
+		# OR
+		services.pipewire = {
+		enable = true;
+		pulse.enable = true;
+		};
+
+		# Enable touchpad support (enabled default in most desktopManager).
+		services.libinput.enable = true;
+
+		# Define a user account. Don't forget to set a password with ‘passwd’.
+		users.users.ejverat = {
+			isNormalUser = true;
+			extraGroups = [ "sudo" "wheel" ]; # Enable ‘sudo’ for the user.
+			packages = with pkgs; [
+			tree
+			];
+		};
+
+		environment.systemPackages = with pkgs; [
+			firefox
+			neovim
+			git
+			thunar
+		];
+
+		
+		# Some programs need SUID wrappers, can be configured further or are
+		# started in user sessions.
+		programs.mtr.enable = true;
+		programs.gnupg.agent = {
+		  enable = true;
+		  enableSSHSupport = true;
+		};
+
+		# List services that you want to enable:
+
+		# Enable the OpenSSH daemon.
+		services.openssh.enable = true;
+
+		# Enable avahi to allow use hostname in local network
+		services.avahi.enable = true;
+		networking.firewall.allowedUDPPorts = [ 5353 ];
+
+		
+		system.stateVersion = "25.11"; # Did you read the comment?
+	};
+
+}
