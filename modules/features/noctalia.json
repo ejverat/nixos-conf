@@ -138,7 +138,7 @@
           },
           {
             "deviceNativePath": "__default__",
-            "displayMode": "graphic-clean",
+            "displayMode": "graphic",
             "hideIfIdle": false,
             "hideIfNotDetected": true,
             "id": "Battery",
@@ -259,7 +259,7 @@
       "settingsPanelSideBarCardStyle": false
     },
     "location": {
-      "name": "Tokyo",
+      "name": "Merida, MX",
       "weatherEnabled": true,
       "weatherShowEffects": true,
       "useFahrenheit": false,
@@ -449,7 +449,7 @@
       "disableDesktopWidgets": true
     },
     "dock": {
-      "enabled": true,
+      "enabled": false,
       "position": "bottom",
       "displayMode": "auto_hide",
       "dockType": "floating",
@@ -684,7 +684,7 @@
       }
     },
     "notificationsState": {
-      "lastSeenTs": 0
+      "lastSeenTs": 1775270779000
     },
     "changelogState": {
       "lastSeenVersion": "v4.7.1"
