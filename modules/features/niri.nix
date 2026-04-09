@@ -1,4 +1,5 @@
-{ self, inputs, ... }: {
+{ self, inputs, ... }:
+{
 
 	flake.nixosModules.niri = { pkgs, lib, ... }: {
 		programs.niri = {
@@ -7,12 +8,16 @@
 		};
 	};
 
-	perSystem = { pkgs, lib, self', ... }: {
+	perSystem = { pkgs, lib, self', ... }: 
+	let
+		noctaliaCmd = lib.getExe self'.packages.myNoctalia;
+	in
+	{
 		packages.myNiri = inputs.wrapper-modules.wrappers.niri.wrap {
 			inherit pkgs;
 			settings = {
 				spawn-at-startup = [
-					(lib.getExe self'.packages.myNoctalia)
+					noctaliaCmd
 				];
 				input.keyboard = {
 					xkb.layout = "us,latam";
@@ -21,7 +26,7 @@
 				layout.gaps = 5;
 
 				binds = {
-					"Mod+S".spawn-sh = "${lib.getExe self'.packages.myNoctalia} ipc call launcher toggle";
+					"Mod+S".spawn-sh = "${noctaliaCmd} ipc call launcher toggle";
 					"Mod+Return".spawn-sh = lib.getExe pkgs.kitty;
 					"Mod+Q".close-window = (_: {});
 				};
