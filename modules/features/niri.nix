@@ -23,7 +23,7 @@
 					xkb.layout = "us,latam";
 				};
 
-				layout.gaps = 5;
+				layout.gaps = 4;
 
 				binds = {
 					"Mod+S".spawn-sh = "${noctaliaCmd} ipc call launcher toggle";
