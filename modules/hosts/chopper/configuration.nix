@@ -51,6 +51,7 @@
 			git
 			thunar
 			pciutils
+			asusctl
 		];
 
 		
@@ -112,6 +113,8 @@
 		};
 
 		services.upower.enable = true;
+		services.asusd.enable = true;
+		services.supergfxd.enable = true;
 		
 		system.stateVersion = "25.11"; # Did you read the comment?
 	};
