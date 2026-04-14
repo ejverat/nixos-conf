@@ -131,6 +131,23 @@
 		services.upower.enable = true;
 		services.asusd.enable = true;
 		services.supergfxd.enable = true;
+
+    nixpkgs.config.allowUnfree = true;
+    # Enable OpenGL
+    hardware.graphics = {
+      enable = true;
+    };
+
+    services.xserver.videoDrivers = ["nvidia"];
+
+    hardware.nvidia = {
+      modesetting.enable = false;
+      powerManagement.enable = false;
+      powerManagement.finegrained = false;
+      open = true;
+      nvidiaSettings = true;
+      #package = config.boot.kernelPackages.nvidiaPackages.stable;
+    };
 		
 		system.stateVersion = "25.11"; # Did you read the comment?
 	};
