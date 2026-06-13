@@ -4,6 +4,7 @@
 		imports = [
 			self.nixosModules.chopperHardware
 			self.nixosModules.niri
+			self.nixosModules.opencode
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -57,9 +58,8 @@
       gcc
       ripgrep
       luarocks
-      opencode
-		];
-
+    ];
+		
     environment.variables.EDITOR = lib.getExe pkgs.neovim;
 
 		programs.xfconf.enable = true;

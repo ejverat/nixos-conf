@@ -1,0 +1,14 @@
+{ self, inputs, ... }: {
+  flake.nixosModules.opencode = { config, pkgs, lib, ... }: {
+    environment.systemPackages = [
+      self.packages.${pkgs.stdenv.hostPlatform.system}.myOpencode
+    ];
+  };
+
+  perSystem = { pkgs, ... }: {
+    packages.myOpencode = inputs.wrapper-modules.wrappers.opencode.wrap {
+      inherit pkgs;
+      settings = {};
+    };
+  };
+}
