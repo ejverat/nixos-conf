@@ -57,6 +57,7 @@
       gcc
       ripgrep
       luarocks
+      opencode
 		];
 
     environment.variables.EDITOR = lib.getExe pkgs.neovim;
