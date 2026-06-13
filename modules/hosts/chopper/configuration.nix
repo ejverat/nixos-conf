@@ -5,6 +5,7 @@
 			self.nixosModules.chopperHardware
 			self.nixosModules.niri
 			self.nixosModules.opencode
+			self.nixosModules.wezterm
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -155,6 +156,15 @@
     };
 		
 		system.stateVersion = "25.11"; # Did you read the comment?
+
+    # automatic updating
+    system.autoUpgrade.enable = true;
+    system.autoUpgrade.dates = "weekly";
+    # autmatic cleanup
+    nix.gc.automatic = true;
+    nix.gc.dates = "daily";
+    nix.gc.options = "--delete-older-than 10d";
+    nix.settings.auto-optimise-store = true;
 	};
 
 }

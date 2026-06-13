@@ -11,6 +11,7 @@
 	perSystem = { config, pkgs, lib, self', ... }: 
 	let
 		noctaliaCmd = lib.getExe self'.packages.myNoctalia;
+		terminalCmd = lib.getExe self'.packages.myWezterm;
 	in
 	{
 		packages.myNiri = inputs.wrapper-modules.wrappers.niri.wrap {
@@ -27,6 +28,7 @@
 
           keyboard = {
             xkb.layout = "us,latam";
+            xkb.options = "grp:win_space_toggle,compose:ralt,ctrl:nocaps";
           };
 
           touchpad = {
@@ -65,10 +67,11 @@
 
         binds = {
           "Mod+Shift+Slash".show-hotkey-overlay = (_: {});
-          "Mod+S".spawn-sh = "${noctaliaCmd} ipc call launcher toggle";
-          "Super+Ctrl+L".spawn-sh = "${noctaliaCmd} ipc call lockScreen lock";
+          "Mod+D".spawn-sh = "${noctaliaCmd} ipc call launcher toggle";
+          "Super+Alt+L".spawn-sh = "${noctaliaCmd} ipc call lockScreen lock";
+          "Mod+Shift+X".spawn-sh = "${noctaliaCmd} ipc call sessionMenu toggle";
 
-          "Mod+Return".spawn-sh = lib.getExe pkgs.kitty;
+          "Mod+Return".spawn-sh = terminalCmd;
           "Mod+Q".close-window = {};
           "Mod+F".maximize-column = {};
           "Mod+G".fullscreen-window = {};
