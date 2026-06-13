@@ -70,6 +70,10 @@
 		services.gvfs.enable = true; # Mount, trash, and other functionalities
 		services.tumbler.enable = true; # Thumbnail support for images
 
+    # DIRENV
+    programs.direnv.enable = true;
+    programs.direnv.nix-direnv.enable = true;
+
 		
 		# Some programs need SUID wrappers, can be configured further or are
 		# started in user sessions.
