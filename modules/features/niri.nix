@@ -11,7 +11,7 @@
 	perSystem = { config, pkgs, lib, self', ... }: 
 	let
 		noctaliaCmd = lib.getExe self'.packages.myNoctalia;
-		terminalCmd = lib.getExe self'.packages.myWezterm;
+		terminalCmd = lib.getExe pkgs.wezterm;
 	in
 	{
 		packages.myNiri = inputs.wrapper-modules.wrappers.niri.wrap {
