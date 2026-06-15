@@ -7,6 +7,7 @@
 			self.nixosModules.opencode
 			self.nixosModules.wezterm
 			self.nixosModules.zsh
+			self.nixosModules.neovim
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -50,7 +51,6 @@
 
 		environment.systemPackages = with pkgs; [
 			firefox
-			neovim
 			git
 			pciutils
 			asusctl
@@ -62,8 +62,6 @@
       luarocks
     ];
 		
-    environment.variables.EDITOR = lib.getExe pkgs.neovim;
-
 		programs.xfconf.enable = true;
 		programs.thunar.enable = true;
 		programs.thunar.plugins = with pkgs; [
