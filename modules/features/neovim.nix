@@ -7,7 +7,7 @@
   };
 
   perSystem = { pkgs, lib, ... }: let
-    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd ];
+    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd ];
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;
     neovimModule = { config, lib, wlib, ... }: {
       imports = [ wlib.wrapperModules.neovim ];
