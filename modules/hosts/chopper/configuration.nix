@@ -6,6 +6,7 @@
 			self.nixosModules.niri
 			self.nixosModules.opencode
 			self.nixosModules.wezterm
+			self.nixosModules.zsh
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];
