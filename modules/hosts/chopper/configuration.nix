@@ -8,6 +8,7 @@
 			self.nixosModules.wezterm
 			self.nixosModules.zsh
 			self.nixosModules.neovim
+			self.nixosModules.tmux
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];

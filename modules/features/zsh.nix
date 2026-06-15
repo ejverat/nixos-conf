@@ -9,7 +9,6 @@
       zsh-powerlevel10k
       zsh-syntax-highlighting
       fzf
-      tmux
     ];
     users.users.ejverat.shell = myZsh;
     environment.sessionVariables = {
