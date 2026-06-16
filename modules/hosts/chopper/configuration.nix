@@ -9,6 +9,7 @@
 			self.nixosModules.zsh
 			self.nixosModules.neovim
 			self.nixosModules.tmux
+			self.nixosModules.docker
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];
