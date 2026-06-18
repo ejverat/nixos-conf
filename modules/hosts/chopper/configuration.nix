@@ -10,6 +10,8 @@
 			self.nixosModules.neovim
 			self.nixosModules.tmux
 			self.nixosModules.docker
+			self.nixosModules.slack
+			self.nixosModules.claude-code
 		];
 
 		nix.settings.experimental-features = [ "nix-command" "flakes" ];

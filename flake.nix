@@ -8,6 +8,8 @@
     wrapper-modules.url = "github:BirdeeHub/nix-wrapper-modules";
 
     opencode.url = "github:GutMutCode/opencode-nix";
+
+    claude-code.url = "github:sadjow/claude-code-nix";
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);
