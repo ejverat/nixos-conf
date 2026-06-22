@@ -20,7 +20,7 @@
 
         prefer-no-csd = (_: {});
 
-				spawn-at-startup = [
+        spawn-at-startup = [
 					noctaliaCmd
 				];
 

@@ -21,6 +21,7 @@
       self.nixosModules.slack
 			self.nixosModules.claude-code
 			self.nixosModules.google-chrome
+			self.nixosModules.kanshi
 		];
 
     nix.settings.experimental-features = ["nix-command" "flakes"];
