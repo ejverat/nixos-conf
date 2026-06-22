@@ -45,6 +45,7 @@ EOF
       zshrc.content = ''
         export ZSH_CUSTOM="$HOME/.oh-my-zsh-custom"
         typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+        alias sync-noctalia='nix run ~/nixos-conf#sync-noctalia'
         source "$HOME/.dotfiles/home/.zshrc"
       '';
       skipGlobalRC = true;
