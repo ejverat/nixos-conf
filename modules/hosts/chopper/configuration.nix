@@ -66,8 +66,6 @@
       git
       pciutils
       asusctl
-      pciutils
-      asusctl
       file-roller
       gcc
       ripgrep
@@ -159,7 +157,7 @@
     services.xserver.videoDrivers = ["nvidia"];
 
     hardware.nvidia = {
-      modesetting.enable = false;
+      modesetting.enable = true;
       powerManagement.enable = false;
       powerManagement.finegrained = false;
       open = true;
