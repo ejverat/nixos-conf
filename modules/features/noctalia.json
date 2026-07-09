@@ -173,7 +173,9 @@
             "drawerEnabled": true,
             "hidePassive": false,
             "id": "Tray",
-            "pinned": []
+            "pinned": [
+              "Ning\u00fan mensaje sin leer"
+            ]
           },
           {
             "hideWhenZero": false,
@@ -214,6 +216,25 @@
             "icon": "noctalia",
             "id": "ControlCenter",
             "useDistroLogo": false
+          },
+          {
+            "defaultSettings": {
+              "colorHistory": [],
+              "detectedRecorder": "",
+              "filenameFormat": "",
+              "gifMaxSeconds": 30,
+              "installedLangs": [
+                "eng"
+              ],
+              "paletteColors": [],
+              "recordCopyToClipboard": false,
+              "recordSkipConfirmation": false,
+              "screenshotPath": "",
+              "selectedOcrLang": "eng",
+              "transAvailable": false,
+              "videoPath": ""
+            },
+            "id": "plugin:screen-toolkit"
           }
         ]
       }
