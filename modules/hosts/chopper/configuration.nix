@@ -179,7 +179,8 @@
     # autmatic cleanup
     nix.gc.automatic = true;
     nix.gc.dates = "daily";
-    nix.gc.options = "--delete-older-than 10d";
+    nix.gc.options = "--delete-older-than 7d";
+    boot.loader.systemd-boot.configurationLimit = 15;
     nix.settings.auto-optimise-store = true;
   };
 }
