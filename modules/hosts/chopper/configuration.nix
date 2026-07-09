@@ -23,6 +23,9 @@
 			self.nixosModules.google-chrome
 			self.nixosModules.kanshi
 			self.nixosModules.ollama
+			self.nixosModules.gimp
+			self.nixosModules.hyprpicker
+			self.nixosModules.chromium
 		];
 
     nix.settings.experimental-features = ["nix-command" "flakes"];
