@@ -1,8 +1,9 @@
 { self, inputs, ... }: {
   flake.nixosModules.neovim = { config, pkgs, lib, ... }: let
     myNeovim = self.packages.${pkgs.stdenv.hostPlatform.system}.myNeovim;
+    mmdr = inputs.mermaid-rs-renderer.packages.${pkgs.stdenv.hostPlatform.system}.default;
   in {
-    environment.systemPackages = lib.mkBefore [ myNeovim ];
+    environment.systemPackages = lib.mkBefore [ myNeovim mmdr ];
     environment.variables.EDITOR = lib.mkForce "${myNeovim}/bin/nvim";
   };
 
