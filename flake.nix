@@ -10,6 +10,11 @@
     opencode.url = "github:GutMutCode/opencode-nix";
 
     claude-code.url = "github:sadjow/claude-code-nix";
+
+    antigravity-nix = {
+      url = "github:jacopone/antigravity-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);

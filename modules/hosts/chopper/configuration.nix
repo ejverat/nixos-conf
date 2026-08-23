@@ -20,6 +20,7 @@
       self.nixosModules.docker
       self.nixosModules.slack
 			self.nixosModules.claude-code
+			self.nixosModules.antigravity
 			self.nixosModules.google-chrome
 			self.nixosModules.kanshi
 			self.nixosModules.ollama
