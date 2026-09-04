@@ -8,7 +8,7 @@
   };
 
   perSystem = { pkgs, lib, ... }: let
-    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 ];
+    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd ];
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;
     neovimModule = { config, lib, wlib, ... }: {
       imports = [ wlib.wrapperModules.neovim ];
@@ -16,6 +16,11 @@
         vim.fn.expand("$HOME/.dotfiles/config/nvim")
       '';
       extraPackages = neovimExtraPkgs;
+      # Prefix clang-tools (clangd 21) so it shadows any older clangd on the outer
+      # PATH (e.g. the FHS devshell's clangd 19, which segfaults on UE headers).
+      prefixVar = [
+        [ "PATH" ":" (pkgs.lib.makeBinPath [ pkgs.clang-tools ]) ]
+      ];
       specs.treesitter-grammars = neovimGrammarPlugins;
     };
     wrapperEval = inputs.wrapper-modules.lib.evalModule [ neovimModule ];

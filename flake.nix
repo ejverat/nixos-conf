@@ -20,6 +20,10 @@
       url = "github:1jehuang/mermaid-rs-renderer";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixpkgs-pnpm = {
+      url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);

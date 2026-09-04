@@ -27,6 +27,7 @@
 			self.nixosModules.gimp
 			self.nixosModules.hyprpicker
 			self.nixosModules.chromium
+			self.nixosModules.deepseek-harness
 		];
 
     nix.settings.experimental-features = ["nix-command" "flakes"];
