@@ -28,6 +28,8 @@
 			self.nixosModules.hyprpicker
 			self.nixosModules.chromium
 			self.nixosModules.deepseek-harness
+			self.nixosModules.pi
+			self.nixosModules.teams
 		];
 
     nix.settings.experimental-features = ["nix-command" "flakes"];

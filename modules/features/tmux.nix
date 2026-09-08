@@ -19,6 +19,9 @@
         pkgs.tmuxPlugins.session-wizard
       ];
       configAfter = ''
+        # Necesario para pi: detección de teclas modificadas (Shift+Enter, etc.)
+        set -g extended-keys on
+        set -g extended-keys-format csi-u
         source-file ~/.dotfiles/config/tmux/tmux.conf
       '';
     };
