@@ -29,6 +29,7 @@
 			self.nixosModules.chromium
 			self.nixosModules.deepseek-harness
 			self.nixosModules.pi
+			self.nixosModules.gentle-pi
 			self.nixosModules.teams
 		];
 
