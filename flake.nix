@@ -24,6 +24,12 @@
     nixpkgs-pnpm = {
       url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     };
+
+    # Pinned separately so pi-coding-agent stays new enough for gentle-pi
+    # (requires >= 0.85.1) without updating the whole system nixpkgs.
+    nixpkgs-pi = {
+      url = "github:NixOS/nixpkgs/nixos-unstable";
+    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);
