@@ -8,7 +8,7 @@
   };
 
   perSystem = { pkgs, lib, ... }: let
-    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd ];
+    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd pkgs.imagemagick pkgs.ueberzugpp ]; # imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;
     neovimModule = { config, lib, wlib, ... }: {
       imports = [ wlib.wrapperModules.neovim ];
@@ -23,9 +23,9 @@
       ];
       specs.treesitter-grammars = neovimGrammarPlugins;
       # Neovim's python3 remote-plugin host. `pynvim` is added automatically by
-      # wrapper-modules; `jupyter_client` is the only extra dependency molten-nvim
-      # needs on the host side to talk to Jupyter kernels.
-      hosts.python3.withPackages = pp: [ pp.jupyter-client ];
+      # wrapper-modules; `jupyter_client` (molten kernel comms) and `pillow`
+      # (MoltenImagePopup) are the extra python deps molten-nvim needs on the host.
+      hosts.python3.withPackages = pp: [ pp.jupyter-client pp.pillow ];
     };
     wrapperEval = inputs.wrapper-modules.lib.evalModule [ neovimModule ];
   in {
