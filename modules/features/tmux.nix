@@ -12,7 +12,7 @@
       prefix = "C-a";
       baseIndex = 1;
       modeKeys = "vi";
-      visualActivity = true;
+      visualActivity = false; # image.nvim/molten: keep images stable across tmux windows
       mouse = true;
       plugins = [
         pkgs.tmuxPlugins.nord
