@@ -1,0 +1,6 @@
+# Local Pi runtime state
+.atl/
+
+# Nix build results
+result
+result-*
