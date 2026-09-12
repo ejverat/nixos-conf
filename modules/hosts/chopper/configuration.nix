@@ -116,6 +116,7 @@
     # Enable avahi to allow use hostname in local network
     services.avahi.enable = true;
     networking.firewall.allowedUDPPorts = [5353];
+    networking.firewall.allowedTCPPorts = [8080];
 
     # Display manager
     # Ensure greetd is not enabled anywhere by default (hosts can override if needed)
@@ -177,6 +178,11 @@
       nvidiaSettings = true;
       #package = config.boot.kernelPackages.nvidiaPackages.stable;
     };
+
+    # USB serial adapters (CH340/CH341) - allow non-root access
+    services.udev.extraRules = ''
+      SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", MODE="0666"
+    '';
 
     system.stateVersion = "25.11"; # Did you read the comment?
 
