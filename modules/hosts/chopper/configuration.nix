@@ -25,11 +25,13 @@
 			self.nixosModules.kanshi
 			self.nixosModules.ollama
 			self.nixosModules.gimp
+			self.nixosModules.libreoffice
 			self.nixosModules.hyprpicker
 			self.nixosModules.chromium
 			self.nixosModules.deepseek-harness
 			self.nixosModules.pi
 			self.nixosModules.gentle-pi
+			self.nixosModules.engram
 			self.nixosModules.teams
 		];
 
