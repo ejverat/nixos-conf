@@ -42,6 +42,16 @@ EOF
     packages.myZsh = inputs.wrapper-modules.wrappers.zsh.wrap {
       inherit pkgs;
       zdotFilesDirname = "zsh-dot-dir";
+      # Provider API keys come from modules/features/secrets.nix, which renders the
+      # sops secrets into this file at activation time. It is sourced from zshenv
+      # (not zshrc) so that non-interactive shells get the keys too. This path is
+      # hardcoded in exactly two places on purpose; if you move it, also update
+      # sops.templates in secrets.nix.
+      zshenv.content = ''
+        if [ -r /run/secrets/rendered/pi-provider-keys.env ]; then
+          . /run/secrets/rendered/pi-provider-keys.env
+        fi
+      '';
       zshrc.content = ''
         export ZSH_CUSTOM="$HOME/.oh-my-zsh-custom"
         typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet

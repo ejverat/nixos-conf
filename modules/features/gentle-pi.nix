@@ -14,6 +14,47 @@ in {
     user = "ejverat";
     homeDir = config.users.users.${user}.home;
   in {
+    # Make ~/.local/bin reachable so `gentle-profile` resolves by bare name.
+    #
+    # `environment.localBinInPath = true` is deliberately NOT used here: that
+    # option only appends `export PATH="$HOME/.local/bin:$PATH"` to
+    # /etc/profile (nixos/modules/config/shells-environment.nix:265), and this
+    # host's shell never reads that file. The login/interactive shell is the
+    # wrapper-modules zsh with `skipGlobalRC = true`, so /etc/zshrc is skipped
+    # too (verified: __ETC_ZSHRC_SOURCED is unset, __NIXOS_SET_ENVIRONMENT_DONE
+    # is 1), and /etc/zprofile does not source /etc/profile either.
+    #
+    # The chain this zsh actually follows is:
+    #   $ZDOTDIR/.zshenv -> /etc/zshenv -> /etc/set-environment
+    # and `environment.sessionVariables` is exactly what lands in
+    # /etc/set-environment (shells-environment.nix:231 merges it into
+    # environment.variables). PATH is assembled with lib.concatLists over the
+    # absolute variables plus the profile-relative ones
+    # (programs/environment.nix sets PATH = [ "/bin" ] profile-relative), so
+    # this entry is prepended rather than clobbering the NixOS profile paths.
+    environment.sessionVariables.PATH = [ "$HOME/.local/bin" ];
+
+    # Keep the gentle-profile switcher reachable on a fresh machine. The script
+    # itself lives in pi's user-writable runtime state, so the link is created
+    # only once that file exists. Never fatal: a missing script must not break
+    # system activation.
+    system.activationScripts.gentleProfileLink = {
+      deps = [ "users" ];
+      text = ''
+        src="${homeDir}/.pi/gentle-ai/gentle-profile"
+        dst="${homeDir}/.local/bin/gentle-profile"
+
+        if [ -x "$src" ]; then
+          mkdir -p "$(dirname "$dst")"
+          ln -sfn "$src" "$dst"
+          chown -h ${user}:users "$dst" 2>/dev/null || true
+          chown ${user}:users "$(dirname "$dst")" 2>/dev/null || true
+        else
+          echo "gentle-profile: $src does not exist yet; skipping link" >&2
+        fi
+      '';
+    };
+
     # Register the Nix-built gentle-pi in pi's global settings. Pi has no
     # settings.d support, so merge the entry additively into the existing
     # user-writable settings.json (idempotent; other entries are preserved).

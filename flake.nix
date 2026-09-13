@@ -30,6 +30,14 @@
     nixpkgs-pi = {
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
+
+    # Secret management. Age identity is the ed25519 SSH host key
+    # (services.openssh.enable is on, and sops.age.sshKeyPaths defaults to it),
+    # so there is no separate age key to generate or keep.
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);

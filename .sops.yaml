@@ -1,0 +1,15 @@
+# sops creation rules for this repo.
+#
+# The age recipient is the public half of the host's ed25519 SSH key, so the
+# encrypted secrets can only be decrypted by this machine (or anything holding
+# that host key). Re-derive it with:
+#   ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub
+keys:
+  - &chopper age1jgzvhjr0jve40hu4mcq8vgstt60jlsxlzt0z9zgc2ljve706hanqcqavvq
+
+creation_rules:
+  # Anything under secrets/ ending in .yaml gets encrypted to the host key.
+  - path_regex: secrets/[^/]+\.yaml$
+    key_groups:
+      - age:
+          - *chopper

@@ -33,6 +33,7 @@
 			self.nixosModules.gentle-pi
 			self.nixosModules.engram
 			self.nixosModules.teams
+			self.nixosModules.secrets
 		];
 
     nix.settings.experimental-features = ["nix-command" "flakes"];
