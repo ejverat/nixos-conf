@@ -116,6 +116,9 @@
 
     # Enable avahi to allow use hostname in local network
     services.avahi.enable = true;
+    # Enable the mDNS NSS plugin so this host can *resolve* `.local` names
+    # (e.g. klipper.local), not just announce its own hostname.
+    services.avahi.nssmdns4 = true;
     networking.firewall.allowedUDPPorts = [5353];
     networking.firewall.allowedTCPPorts = [8080];
 
