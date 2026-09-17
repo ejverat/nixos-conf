@@ -1,12 +1,12 @@
 { self, inputs, ... }: let
-  # gentle-ai release pinned by gentle-pi v2.5.0 itself
+  # gentle-ai release pinned by gentle-pi v3.2.0 itself
   # (scripts/gentle-ai-installer.mjs, INSTALLER_VERSION). The binary is a
   # static Go executable, so the official signed release runs fine on NixOS
   # and passes gentle-pi's strict package-local integrity verification.
-  gentleAiVersion = "2.7.0";
-  gentleAiAsset = "gentle-ai_2.7.0_linux_amd64.tar.gz";
-  gentleAiAssetSha256 = "ff765a183247fe31d4739ff6df3d6874740979987ea310de3856c8a6e85375e9";
-  gentleAiBinarySha256 = "8748b9f18c05a831692abc0ae560fdc50a4e4c8f492705edcce7f65e067a7b12";
+  gentleAiVersion = "3.1.0";
+  gentleAiAsset = "gentle-ai_3.1.0_linux_amd64.tar.gz";
+  gentleAiAssetSha256 = "dc55c44a2eb46212a38eca0dfd4d778481ec37e765f40d5a0752d03c28e1ee49";
+  gentleAiBinarySha256 = "70e335d25809a0d358c12f48b2f0d1da00741e725584ceeb8c1318c60d0a6e9e";
 in {
   flake.nixosModules.gentle-pi = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
@@ -59,6 +59,12 @@ in {
     # settings.d support, so merge the entry additively into the existing
     # user-writable settings.json (idempotent; other entries are preserved).
     # Do NOT also `pi install npm:gentle-pi`: that would load it twice.
+    #
+    # The prune regex MUST tolerate the `-<version>` suffix: a derivation's
+    # store path is `<pname>-<version>` (e.g. ...-gentle-pi-3.2.0), so an
+    # anchored `-gentle-pi$` matches nothing and stale versions accumulate in
+    # settings.json. Pi then loads two copies of the same extensions and
+    # aborts startup with `Tool "<name>" conflicts with ...`.
     system.activationScripts.piGentlePi = {
       deps = [ "users" "groups" ];
       text = ''
@@ -111,7 +117,7 @@ in {
 
       src = pkgs.fetchurl {
         url = "https://github.com/Gentleman-Programming/gentle-ai/releases/download/v${gentleAiVersion}/${gentleAiAsset}";
-        hash = "sha256-/3ZaGDJH/jHUc5/23z1odHQJeZh+oxDeOFbIpuhTdek=";
+        hash = "sha256-3FXESi60YhKjjsoN/U13hIHsN+dl9A1aB1LQPCjh7kk=";
       };
 
       sourceRoot = ".";
@@ -126,13 +132,13 @@ in {
   in {
     packages.gentle-pi = pkgs.stdenv.mkDerivation (finalAttrs: {
       pname = "gentle-pi";
-      version = "2.5.0";
+      version = "3.2.0";
 
       src = pkgs.fetchFromGitHub {
         owner = "Gentleman-Programming";
         repo = "gentle-pi";
         tag = "v${finalAttrs.version}";
-        hash = "sha256-i/Sbg7xfCx5YLTyvL4cYPlvBL/qRhwPVz5Gallbv/Yk=";
+        hash = "sha256-vN+esM/GaVMmCAs6j4JhVBDoeg60OacDW+Rw7Kh4aFg=";
       };
 
       __structuredAttrs = true;
@@ -142,7 +148,7 @@ in {
         inherit (finalAttrs) pname version src;
         pnpm = pnpm11.pnpm;
         fetcherVersion = 4;
-        hash = "sha256-i7xs9URp+tRWVlnivUk9e4bgW3WnP1biwwsgvQI1CoI=";
+        hash = "sha256-MTi1ZLE4pX4YgDlxnvy3Zo7yZQT6gquYISJSIae2eAk=";
       };
 
       nativeBuildInputs = [
