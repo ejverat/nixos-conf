@@ -86,8 +86,8 @@ in {
           .packages = (
             ((.packages // [])
               | map(select(
-                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-pi$"))
-                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-pi$"))))
+                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$"))
+                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$"))))
                   | not)))
             + [$pkg] | unique)
         ' "$settings" > "$tmp"; then
