@@ -13,6 +13,10 @@
     # Register the Nix-built gentle-engram Pi package (mem_* tools) in pi's
     # global settings, additively, next to the gentle-pi entry. Same merge
     # policy as gentle-pi.nix: idempotent, preserves every other entry.
+    #
+    # As in gentle-pi.nix, the prune regex must tolerate the `-<version>`
+    # suffix of the store path (...-gentle-engram-0.1.12), otherwise old
+    # versions are never removed and pi fails with duplicate tool conflicts.
     system.activationScripts.piEngram = {
       deps = [ "users" "groups" ];
       text = ''
@@ -34,8 +38,8 @@
           .packages = (
             ((.packages // [])
               | map(select(
-                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-engram$"))
-                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-engram$"))))
+                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$"))
+                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$"))))
                   | not)))
             + [$pkg] | unique)
         ' "$settings" > "$tmp"; then
