@@ -92,6 +92,37 @@ changes, so nothing is lost.
   merge has to stay a system activation (pi rewrites that file at runtime) and
   gear5th installs those agents from npm, so relocating the packages is churn.
 
+## Migration note: root-owned leftovers from the old zsh activation
+
+The removed `system.activationScripts.zsh-plugin-symlinks` ran as **root**, so it
+left root-owned paths in the user's home:
+
+```
+lrwxrwxrwx root root ~/.oh-my-zsh
+lrwxrwxrwx root root ~/powerlevel10k
+drwxr-xr-x root root ~/.zsh                    (contains the autosuggestions symlink)
+drwxr-xr-x root root ~/.oh-my-zsh-custom       (contains the syntax-highlighting plugin file)
+```
+
+home-manager activates as the user, so it cannot create or replace entries inside
+those directories: the first slice-4 switch failed with
+`ln: failed to create symbolic link '/home/ejverat/.zsh/zsh-autosuggestions': Permission denied`
+and `home-manager-ejverat.service` ended up `failed` (the system generation still
+switched, so the fix is just to finish the HM part).
+
+One-time cleanup, then re-switch:
+
+```sh
+rm -f ~/.oh-my-zsh ~/powerlevel10k                 # symlinks to the same targets
+sudo rm -rf ~/.zsh ~/.oh-my-zsh-custom             # root-owned dirs, HM recreates them
+sudo nixos-rebuild switch --flake .#chopper
+systemctl status home-manager-ejverat.service      # expect active
+```
+
+The same class of problem applies to any future host that migrates away from a
+root-run activation: check ownership with `ls -ld` before expecting HM to manage
+those paths.
+
 ## Verification (slices 1, 2, 4)
 
 - `nix flake check` — all checks passed.
