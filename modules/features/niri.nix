@@ -22,6 +22,11 @@
 			# explicitly or X11 apps (wezterm with enable_wayland=false)
 			# silently get no Xwayland.
 			pkgs.xwayland
+			# GL drivers for the /run/opengl-driver tree that nixpkgs' libgbm
+			# and libglvnd look for (scripts/fix-opengl-driver.sh points the
+			# tree here). On NixOS this comes from the system profile; in the
+			# profile it is also the GC root that keeps the drivers alive.
+			pkgs.mesa
 		];
 	};
 
@@ -31,6 +36,13 @@
 		terminalCmd = lib.getExe pkgs.wezterm;
 	in
 	{
+		# Flake-level handle on the GL drivers package the /run/opengl-driver
+		# tree must point to on non-NixOS hosts. Resolving it as an output is
+		# deterministic (no closure walking) and always matches the pin that
+		# also built libgbm/libglvnd for this host:
+		#   nix eval --raw .#packages.x86_64-linux.mesaDrivers.outPath
+		packages.mesaDrivers = pkgs.mesa;
+
 		packages.myNiri = inputs.wrapper-modules.wrappers.niri.wrap {
 			inherit pkgs;
 			settings = {

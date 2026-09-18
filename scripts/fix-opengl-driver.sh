@@ -13,49 +13,89 @@
 #        /run/opengl-driver/share/glvnd/egl_vendor.d:/etc/glvnd/egl_vendor.d:/usr/share/glvnd/egl_vendor.d
 #        DEBUG niri::backend::tty: ... Unable to obtain a valid EGL Display.
 #
-# This script resolves the mesa package from the flake's own niri closure and
-# symlinks the same subdirectories NixOS exposes, then persists them with a
-# systemd tmpfiles.d entry so they survive reboots. Re-run it after nixpkgs
-# lock updates (store hashes change).
+# This script resolves the flake's own drivers output
+# (.#packages.x86_64-linux.mesaDrivers, also a dependency of the niri home
+# module, so the store path is GC-rooted) and then, as root, symlinks the same
+# subdirectories NixOS exposes and persists them in a systemd tmpfiles.d entry
+# so they survive reboots. Re-run it after nixpkgs lock updates (store hashes
+# change).
 #
-# Usage (needs root; the script re-execs itself with sudo):
+# Usage (run as your user; it re-execs itself with sudo for the root part):
 #   ./scripts/fix-opengl-driver.sh
 
 set -euo pipefail
-
-if [ "$(id -u)" -ne 0 ]; then
-    exec sudo --preserve-env "$0" "$@"
-fi
 
 REPO_DIR="${REPO_DIR:-$HOME/nixos-conf}"
 TMPFILES=/etc/tmpfiles.d/nix-opengl-driver.conf
 ROOT=/run/opengl-driver
 
-echo "[*] resolving mesa from the niri closure in $REPO_DIR"
-if [ ! -f "$REPO_DIR/flake.nix" ]; then
-    echo "[x] flake not found at $REPO_DIR (set REPO_DIR)" >&2
-    exit 1
-fi
-
-closure="$(mktemp)"
-trap 'rm -f "$closure"' EXIT
-# shellcheck disable=SC2164
-(cd "$REPO_DIR" && nix path-info -r .#packages.x86_64-linux.myNiri) > "$closure"
-
-MESA_ROOT=""
-while IFS= read -r p; do
-    if [ -z "$MESA_ROOT" ] && [ -f "$p/lib/gbm/dri_gbm.so" ] && [ -d "$p/share/glvnd/egl_vendor.d" ]; then
-        MESA_ROOT="$p"
+# ── Phase 1 (user): resolve the mesa drivers package ───────────────────────
+resolve_mesa() {
+    if [ ! -f "$REPO_DIR/flake.nix" ]; then
+        echo "[x] flake not found at $REPO_DIR (set REPO_DIR)" >&2
+        exit 1
     fi
-done < "$closure"
 
-if [ -z "$MESA_ROOT" ]; then
-    echo "[x] no mesa package with dri_gbm.so + glvnd vendor found in the niri closure." >&2
-    echo "    Build it first: nix build .#packages.x86_64-linux.myNiri" >&2
+    local nix_bin
+    nix_bin="$(command -v nix || true)"
+    if [ -z "$nix_bin" ]; then
+        local c
+        for c in "$HOME/.nix-profile/bin/nix" /nix/var/nix/profiles/default/bin/nix; do
+            if [ -x "$c" ]; then
+                nix_bin="$c"
+                break
+            fi
+        done
+    fi
+    if [ -z "$nix_bin" ]; then
+        echo "[x] nix not found in PATH (activate nix / home-manager first)" >&2
+        exit 1
+    fi
+
+    # Primary: the flake's own drivers output (same pin that built libgbm and
+    # libglvnd for this host, and a real dependency of the niri home module so
+    # the store path is GC-rooted by the profile).
+    local mesa
+    mesa="$(cd "$REPO_DIR" && "$nix_bin" eval --raw .#packages.x86_64-linux.mesaDrivers.outPath 2>/dev/null || true)"
+
+    if [ -z "$mesa" ] || [ ! -d "$mesa/lib/dri" ]; then
+        echo "[x] could not resolve .#packages.x86_64-linux.mesaDrivers" >&2
+        echo "    run: cd $REPO_DIR && home-manager switch --flake .#gear5th" >&2
+        exit 1
+    fi
+
+    if [ ! -f "$mesa/lib/dri/radeonsi_dri.so" ] || [ ! -f "$mesa/lib/gbm/dri_gbm.so" ] \
+        || [ ! -d "$mesa/share/glvnd/egl_vendor.d" ]; then
+        echo "[x] $mesa is missing drivers (radeonsi_dri.so / dri_gbm.so / egl_vendor.d)" >&2
+        exit 1
+    fi
+
+    printf '%s\n' "$mesa"
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "[*] phase 1/2 (user): resolving mesa from the niri closure in $REPO_DIR"
+    MESA_ROOT="$(resolve_mesa)"
+    echo "[*] mesa: $MESA_ROOT"
+    echo "[*] phase 2/2 (root): creating $ROOT symlinks via sudo"
+    exec sudo REPO_DIR="$REPO_DIR" MESA_ROOT="$MESA_ROOT" "$0" "$@"
+fi
+
+# ── Phase 2 (root): symlinks + tmpfiles persistence ────────────────────────
+if [ -z "${MESA_ROOT:-}" ]; then
+    echo "[x] run this script as your user; it re-execs itself with sudo:" >&2
+    echo "    ./scripts/fix-opengl-driver.sh" >&2
     exit 1
 fi
 
-echo "[*] mesa: $MESA_ROOT"
+echo "[*] root phase: mesa = $MESA_ROOT"
+
+# Never touch a system-managed tree (NixOS owns /run/opengl-driver as a symlink).
+if [ -L "$ROOT" ]; then
+    echo "[x] $ROOT is already a symlink (NixOS-managed). This script is for" >&2
+    echo "    non-NixOS hosts; aborting without changes." >&2
+    exit 1
+fi
 
 mkdir -p "$ROOT/lib" "$ROOT/share/glvnd" "$ROOT/share/vulkan"
 
@@ -81,9 +121,9 @@ add_tmpfiles_line() { # add_tmpfiles_line <linkname> <target>
 link "$MESA_ROOT/lib/dri" "$ROOT/lib/dri"
 link "$MESA_ROOT/lib/gbm" "$ROOT/lib/gbm"
 link "$MESA_ROOT/share/glvnd/egl_vendor.d" "$ROOT/share/glvnd/egl_vendor.d"
-[ -d "$MESA_ROOT/lib/dri" ] && add_tmpfiles_line "$ROOT/lib/dri" "$MESA_ROOT/lib/dri"
-[ -d "$MESA_ROOT/lib/gbm" ] && add_tmpfiles_line "$ROOT/lib/gbm" "$MESA_ROOT/lib/gbm"
-[ -d "$MESA_ROOT/share/glvnd/egl_vendor.d" ] && add_tmpfiles_line "$ROOT/share/glvnd/egl_vendor.d" "$MESA_ROOT/share/glvnd/egl_vendor.d"
+add_tmpfiles_line "$ROOT/lib/dri" "$MESA_ROOT/lib/dri"
+add_tmpfiles_line "$ROOT/lib/gbm" "$MESA_ROOT/lib/gbm"
+add_tmpfiles_line "$ROOT/share/glvnd/egl_vendor.d" "$MESA_ROOT/share/glvnd/egl_vendor.d"
 
 # Vulkan ICDs are not needed by niri, but the same tree serves any nix Vulkan
 # app on this host.
