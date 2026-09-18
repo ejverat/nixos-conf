@@ -263,23 +263,36 @@ Re-run the script after nixpkgs lock updates (the store hash changes).
 
 ### 6.11 GDM does not start at boot
 
-On Debian the display manager is pulled in from `graphical.target` through the
-`display-manager.service` alias; enabling the unit alone is not enough when the
-machine still defaults to `multi-user.target`.
+Two Debian-specific traps, both handled by `scripts/install-niri-session.sh`:
+
+1. Debian's `gdm.service` is **static** (`systemctl is-enabled gdm` prints
+   `static`): it has no `[Install]` section, so `systemctl enable gdm` cannot
+   create boot wiring on its own.
+2. The `display-manager.service` alias is what `graphical.target` normally uses,
+   and disabling the DM (tty-mode bootstrap) deletes it.
+
+The script writes a drop-in that restores the install metadata and enables the
+unit again:
 
 ```sh
-systemctl get-default                        # must be graphical.target
-systemctl is-enabled gdm                     # must be enabled
-ls -l /etc/systemd/system/display-manager.service
-systemctl status gdm -l --no-pager | head -30
-journalctl -b -u gdm --no-pager | tail -40
+sudo mkdir -p /etc/systemd/system/gdm.service.d
+sudo tee /etc/systemd/system/gdm.service.d/10-nixos-conf-enable.conf >/dev/null <<'EOF'
+[Install]
+Alias=display-manager.service
+WantedBy=graphical.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable gdm && sudo reboot
 ```
 
-Fixes:
+Diagnostics:
 
 ```sh
-sudo systemctl set-default graphical.target  # if get-default was multi-user
-sudo systemctl enable gdm                    # if it was not enabled
+systemctl get-default                                   # must be graphical.target
+systemctl is-enabled gdm                                # enabled (static = not wired)
+ls -l /etc/systemd/system/display-manager.service
+ls -l /etc/systemd/system/graphical.target.wants/gdm.service
+systemctl status gdm -l --no-pager | head -30
+journalctl -b -u gdm --no-pager | tail -40
 ```
 
 If GDM starts and then crashes, the journal above says why (missing greeter

@@ -91,9 +91,27 @@ EOF
             echo "[=] default target already graphical.target"
         fi
 
-        systemctl enable gdm
-        echo "[+] gdm.service enabled"
+        # Debian ships gdm.service as a STATIC unit (no [Install] section), so
+        # `systemctl enable gdm` alone cannot create any boot-time wiring, and
+        # the display-manager.service alias Debian normally uses is removed
+        # when the DM is disabled (which the tty-mode bootstrap does). Without
+        # either, nothing pulls GDM in at boot even with graphical.target as
+        # the default. Restore the install metadata via a drop-in and let
+        # systemd wire it exactly like the Debian package does.
+        install -d /etc/systemd/system/gdm.service.d
+        cat > /etc/systemd/system/gdm.service.d/10-nixos-conf-enable.conf <<'EOF'
+# Managed by nixos-conf/scripts/install-niri-session.sh
+# gdm.service is static on Debian (no [Install]); this restores the wiring so
+# graphical.target pulls in the display manager again.
+[Install]
+Alias=display-manager.service
+WantedBy=graphical.target
+EOF
+        echo "[+] wrote /etc/systemd/system/gdm.service.d/10-nixos-conf-enable.conf"
 
+        systemctl daemon-reload
+        systemctl enable gdm >/dev/null 2>&1 || true
+        echo "[+] gdm.service enabled: $(systemctl is-enabled gdm 2>&1)"
         systemctl restart gdm >/dev/null 2>&1 || systemctl start gdm >/dev/null 2>&1 || true
         sleep 1
 
@@ -104,7 +122,12 @@ EOF
         if [ -L /etc/systemd/system/display-manager.service ]; then
             echo "    display-manager: -> $(readlink -f /etc/systemd/system/display-manager.service)"
         else
-            echo "    display-manager: MISSING (gdm still starts via graphical.target)"
+            echo "    display-manager: MISSING (no alias for other tools to find)"
+        fi
+        if [ -L /etc/systemd/system/graphical.target.wants/gdm.service ]; then
+            echo "    boot-time hook : graphical.target.wants/gdm.service OK"
+        else
+            echo "    boot-time hook : MISSING -> GDM will NOT start at boot"
         fi
     fi
 
