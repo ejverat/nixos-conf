@@ -1,4 +1,9 @@
 { inputs, ... }: {
+  # home-manager flake-parts integration: makes `flake.homeModules` (shared
+  # user configuration used by standalone hosts like gear5th/Debian) and
+  # `flake.homeConfigurations` mergeable, dendritic-style.
+  imports = [ inputs.home-manager.flakeModules.default ];
+
   systems = [
     "x86_64-linux"
     "x86_64-darwin"

@@ -7,6 +7,18 @@
     environment.variables.EDITOR = lib.mkForce "${myNeovim}/bin/nvim";
   };
 
+  # Portable user layer (non-NixOS hosts, e.g. gear5th/Debian). The wrapper is
+  # the same perSystem package; the raw config lives in the vendored dotfiles
+  # materialized at $HOME/.dotfiles/config/nvim by the dotfiles home module.
+  flake.homeModules.neovim = { pkgs, lib, flakeSelf, flakeInputs, ... }: let
+    system = pkgs.stdenv.hostPlatform.system;
+    myNeovim = flakeSelf.packages.${system}.myNeovim;
+    mmdr = flakeInputs.mermaid-rs-renderer.packages.${system}.default;
+  in {
+    home.packages = [ myNeovim mmdr ];
+    home.sessionVariables.EDITOR = "${myNeovim}/bin/nvim";
+  };
+
   perSystem = { pkgs, lib, ... }: let
     neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd pkgs.imagemagick pkgs.ueberzugpp ]; # imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;

@@ -5,6 +5,15 @@
     environment.systemPackages = lib.mkBefore [ myTmux ];
   };
 
+  # Portable user layer: the wrapper already sources
+  # ~/.dotfiles/config/tmux/tmux.conf (materialized by the dotfiles home
+  # module), so installing it into the user profile is enough.
+  flake.homeModules.tmux = { pkgs, lib, flakeSelf, ... }: let
+    myTmux = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myTmux;
+  in {
+    home.packages = [ myTmux ];
+  };
+
   perSystem = { pkgs, ... }: {
     packages.myTmux = inputs.wrapper-modules.wrappers.tmux.wrap {
       inherit pkgs;
