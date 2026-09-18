@@ -32,6 +32,16 @@ The quick path runs the one-shot script (interactive by default):
 Manual steps (what the script automates), and the AI-agent troubleshooting
 catalog, live in [docs/gear5th-support.md](docs/gear5th-support.md).
 
+### 0. System layer (apt + systemd)
+
+Firmware, Bluetooth, audio, printers and hardware modules are Debian's job, not
+Nix's:
+
+```sh
+./scripts/debian-system-services.sh           # install + enable
+./scripts/debian-system-services.sh --check   # read-only report
+```
+
 ### 1. Install Nix
 
 ```sh
@@ -129,8 +139,20 @@ Hit Ctrl+Alt+F1 (or reboot) and log in — niri takes over tty1.
 
 ## Roadmap
 
-1. Migrate chopper's user-level features to the shared home modules (retire
-   the manual `~/.dotfiles` clone on chopper).
-2. sops-nix home-manager secrets for gear5th (age key based).
-3. Remaining apps (kanshi, hyprpicker, docker-as-user…) through the same
-   mechanism when they are needed on both machines.
+1. **Migrate chopper to the shared layer** (phase 2): the stashed "HomeManager
+   attempt" (`stash@{0}`) already sketches it, but re-do it on top of the
+   existing `flake.homeModules.*` instead of applying the old draft, then retire
+   the manual `~/.dotfiles` clone on chopper.
+2. **sops-nix for home-manager on gear5th** (age key based) so pi's provider
+   keys stop living in `~/.config/zsh/secrets.zsh`.
+3. **More apps through the same mechanism**, in batches, when needed on both
+   machines. Inventory taken from the archived `debian-migration` draft
+   (`archive/debian-migration-draft` tag):
+   - desktop: kanshi (HDMI-A-1 + eDP-1 profiles are in the archived tag),
+     hyprpicker
+   - files: thunar (+ archive-plugin, volman), file-roller, gvfs, tumbler
+   - media: gimp, feh, nomacs, imagemagick
+   - browsers/comms: firefox, chromium, google-chrome, slack
+   - CLI/dev: bat, fd, direnv, tree, pciutils, upower, docker-client, ollama
+4. **System layer stays with Debian**: `scripts/debian-system-services.sh`
+   installs/enables it (apt + systemd), with `--check` for a read-only report.

@@ -35,6 +35,7 @@ breaks.
 | `scripts/bootstrap-gear5th.sh` | one-shot bootstrap (clone → build → shell → activate → DM) |
 | `scripts/install-niri-session.sh` | GDM session file for niri + enable GDM/bluetooth |
 | `scripts/fix-pam-unix-chkpwd.sh` | setuid PAM helper so the lock screen accepts the password |
+| `scripts/debian-system-services.sh` | Debian system layer: apt packages, systemd services, firmware, Bluetooth (`--check` is read-only) |
 | `scripts/fix-opengl-driver.sh` | recreate the `/run/opengl-driver` tree nixpkgs expects |
 | `scripts/diag-gear5th.sh` | read-only fact collector for session/GPU/seat issues |
 | `odd/tasks/portable-home-manager.md` | design decisions + verification evidence |
@@ -52,6 +53,12 @@ consent — a bad change lands on both machines. When in doubt, diagnose and
 report instead of editing.
 
 ## 3. Agent rules
+
+**Layer boundary:** Nix owns the user configuration; Debian owns the system. If
+something needs apt, systemd system units, dbus/udev integration or firmware, it
+belongs to `scripts/debian-system-services.sh` (or apt directly), never to the
+flake. If it is a user program, config file or session, it belongs to a
+`flake.homeModules` module.
 
 1. Run home-manager activation/builds as the **user**, never with `sudo`
    (`sudo -n true` must stay unauthenticated for headless runs).

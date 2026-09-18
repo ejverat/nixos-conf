@@ -86,3 +86,27 @@ zsh base the session depends on. Later batches extend the same mechanism.
 - 2a9af13 feat(home): pi portable package and home module
 - 19624a0 feat(gear5th): home-manager host configuration for Debian
 - (README runbook lands with the docs commit)
+
+## Parallel draft: extract-then-close
+
+A second, independent attempt was pushed from gear5th on branch
+`debian-migration` (commit `e07654f`, "First draft debian migration"): an
+imperative design (`debian-bundle` buildEnv + `nix profile install`, dotfiles
+via stow, hand-written kanshi config, `ly` as DM). It does not contain this
+branch's work and would re-hit every non-NixOS integration bug already solved
+here (GBM/EGL, PAM lock, Xwayland, mesa GC root), while keeping the manual
+dotfiles sync the consolidation was meant to remove.
+
+Decision: **extract-then-close**.
+
+- Extracted: the apt/systemd services checklist →
+  `scripts/debian-system-services.sh` (with `--check`), the app inventory →
+  README roadmap, and the `debian/`-era system concerns now documented in
+  `docs/gear5th-support.md`.
+- Corrected while extracting: no display manager install (GDM/niri come from
+  `scripts/install-niri-session.sh`), pipewire/wireplumber only as packages
+  (they are per-user units), no writes to shell rc files.
+- Closed: the draft lives on as tag `archive/debian-migration-draft`; the
+  `debian-migration` branch is deleted so there is a single implementation.
+- Kanshi profiles (HDMI-A-1 1920x1080 + eDP-1 1366x768) remain available in
+  that tag for the future kanshi home module.
