@@ -112,7 +112,14 @@ nix flake check           # eval-only smoke test, catches module errors
 Report the full error + `HEAD` hash. Do not fix forward on gear5th alone.
 
 ### 6.3 niri does not start on tty1
-Checks in order:
+niri's full output is teed to `$XDG_RUNTIME_DIR/niri-console.log` (readable over
+SSH), so the first diagnostic is always:
+
+```sh
+tail -80 /run/user/$(id -u)/niri-console.log
+```
+
+Then checks in order:
 ```sh
 loginctl list-sessions                       # a TTY session for the user?
 getent passwd "$USER" | cut -d: -f7          # login shell is the wrapper zsh?

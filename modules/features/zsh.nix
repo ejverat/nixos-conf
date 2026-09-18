@@ -66,7 +66,7 @@ EOF
     home.sessionVariables.FZF_BASE = "${pkgs.fzf}/share/fzf";
   };
 
-  perSystem = { pkgs, ... }: let
+  perSystem = { pkgs, self', ... }: let
     # Shared: everything both flavors agree on.
     zshCommon = {
       inherit pkgs;
@@ -96,6 +96,14 @@ EOF
       '';
     });
 
+    # Runs niri as the session leader while teeing its full output to
+    # $XDG_RUNTIME_DIR/niri-console.log (readable over SSH for diagnosis).
+    # exec keeps the script shortlived so tty1 returns to the login prompt
+    # when niri exits.
+    packages.niri-session-log = pkgs.writeShellScriptBin "niri-session-log" ''
+      exec niri 2>&1 | ${pkgs.coreutils}/bin/tee -a "/run/user/$(id -u)/niri-console.log"
+    '';
+
     # Portable flavor for non-NixOS hosts (gear5th/Debian).
     #
     # The nix profile lives under $HOME/.nix-profile (home-manager standalone)
@@ -112,9 +120,10 @@ EOF
       zshrc.content = zshCommon.zshrc.content + ''
         # Portable session: no display manager on Debian can launch a
         # nix-store wayland session, so niri takes over tty1 when the login
-        # shell is interactive and no display server is already running.
+        # shell is interactive and no display server is already running. Output
+        # is teed so a hang is diagnosable over SSH.
         if command -v niri >/dev/null && [[ -z $WAYLAND_DISPLAY && -z $DISPLAY && "$(tty)" = /dev/tty1 ]]; then
-          exec niri
+          exec ${self'.packages.niri-session-log}/bin/niri-session-log
         fi
       '';
     });
