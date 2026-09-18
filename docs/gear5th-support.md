@@ -60,8 +60,10 @@ report instead of editing.
 
 ```sh
 whoami                                   # expect ejverat
-getent passwd "$USER" | cut -d: -f7      # expect /nix/store/...-zsh-5.9.2/bin/zsh
-grep -c /nix/store /etc/shells           # wrapper zsh registered
+# Login shell must be the STABLE profile path (a /nix/store/... store path
+# goes stale on every home-manager switch and GC can break login):
+getent passwd "$USER" | cut -d: -f7      # expect /home/ejverat/.nix-profile/bin/zsh
+grep -c "$HOME/.nix-profile/bin/zsh" /etc/shells   # registered for chsh
 ~/.nix-profile/bin/home-manager --version
 nix flake show "path:$HOME/nixos-conf" --json >/dev/null   # flake evaluates
 ls -l ~/.dotfiles/config/nvim ~/.config/noctalia/settings.json   # symlinks
@@ -127,10 +129,19 @@ systemctl is-enabled gdm sddm lightdm ly greetd 2>/dev/null   # DM owning tty1?
 tty                                        # which tty are you on?
 ```
 If a DM is enabled: `sudo systemctl disable --now <dm>`. If the shell is
-wrong: fix `/etc/shells` + `sudo usermod -s <wrapper-zsh> <user>`. To see the
-niri error directly, from tty2 log in and run `niri` manually — the wrapper
-zsh executes `exec niri` only on tty1 (`myZshPortable` zshrc), so tty2 gives
-you a plain shell for debugging.
+wrong — or the tty1 login is running an old wrapper (symptom: the teed log
+file never appears after a switch) — the login shell was pinned to a stale
+store path. Fix it to the stable profile path:
+
+```sh
+ls -l ~/.nix-profile/bin/zsh
+echo "$HOME/.nix-profile/bin/zsh" | sudo tee -a /etc/shells
+sudo usermod -s "$HOME/.nix-profile/bin/zsh" "$USER"
+```
+
+To see the niri error directly, from tty2 log in and run `niri` manually — the
+wrapper zsh executes `exec niri` only on tty1 (`myZshPortable` zshrc), so tty2
+gives you a plain shell for debugging.
 
 ### 6.4 niri session renders with software GPU / artifacts / screen stays on console logs
 First clarify whether niri is even seeing the display (the running instance is

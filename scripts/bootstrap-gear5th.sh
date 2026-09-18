@@ -116,17 +116,25 @@ build_activation() {
 setup_login_shell() {
     step "Portable zsh as login shell"
 
-    local zsh_out zsh_bin
-    zsh_out="$(cd "$REPO_DIR" && nix eval --raw .#packages.x86_64-linux.myZshPortable.outPath)"
-    zsh_bin="$zsh_out/bin/zsh"
-    [ -x "$zsh_bin" ] || die "wrapper zsh not found at $zsh_bin (build myZshPortable first)"
+    # The login shell must be a STABLE path: ~/.nix-profile/bin/zsh follows the
+    # current home-manager generation. Pinning a store path (…/zsh-5.9.2/bin/zsh)
+    # goes stale on every switch (the wrapper is rebuilt with a new hash), so
+    # config changes silently stop applying and GC can break the login.
+    local zsh_bin="$HOME/.nix-profile/bin/zsh"
+    if [ ! -x "$zsh_bin" ]; then
+        die "$zsh_bin not found: run the home-manager activation before setting the login shell." 2
+    fi
 
     local current_shell
     current_shell="$(getent passwd "$(whoami)" | cut -d: -f7)"
     if [ "$current_shell" = "$zsh_bin" ]; then
-        ok "login shell already set to the wrapper zsh"
+        ok "login shell already set to the portable wrapper ($zsh_bin)"
         return
     fi
+    case "$current_shell" in
+        /nix/store/*)
+            warn "current login shell is a stale store path ($current_shell); replacing it with the profile symlink" ;;
+    esac
 
     if ! grep -qxF "$zsh_bin" /etc/shells 2>/dev/null; then
         confirm "Add $zsh_bin to /etc/shells (sudo)? [y/N]" || die "aborted by user: login shell step"
@@ -218,8 +226,8 @@ preflight
 clone_or_update_repo
 verify_flake
 build_activation
-setup_login_shell
 activate
+setup_login_shell
 disable_display_managers
 summary
 

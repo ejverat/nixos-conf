@@ -48,13 +48,15 @@ nix build .#homeConfigurations.gear5th.activationPackage
 
 ### 3. Make the portable zsh the login shell
 
-The wrapper package exposes `bin/zsh`; `chsh` only accepts shells listed in
-`/etc/shells`, so one root command is needed. From the repo on gear5th:
+The login shell must be a **stable path** — `~/.nix-profile/bin/zsh` — not the
+store path of one build (that goes stale on every switch and GC can break
+login). One root command is needed because `chsh` only accepts shells listed
+in `/etc/shells`. From the repo on gear5th, after the first activation:
 
 ```sh
-ZSH_BIN=$(nix build .#packages.x86_64-linux.myZshPortable --print-out-paths)
-echo "$ZSH_BIN/bin/zsh" | sudo tee -a /etc/shells
-chsh -s "$ZSH_BIN/bin/zsh"
+ls -l ~/.nix-profile/bin/zsh                       # present after activation
+echo "$HOME/.nix-profile/bin/zsh" | sudo tee -a /etc/shells
+chsh -s "$HOME/.nix-profile/bin/zsh"
 ```
 
 ### 4. Activate home-manager
