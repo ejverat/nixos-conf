@@ -66,7 +66,8 @@ OUT=/tmp/gear5th-diag.txt
     journalctl -b 2>/dev/null | grep -iE 'niri|xwayland|session' | tail -50 || echo "(journalctl unavailable)"
     echo
     echo "--- /run/opengl-driver (nixpkgs GL path; must exist on non-NixOS) ---"
-    ls -l /run/opengl-driver/lib 2>&1 || echo "(missing — nixpkgs libgbm cannot load its GBM backend)"
+    ls -l /run/opengl-driver/lib /run/opengl-driver/share/glvnd /run/opengl-driver/share/vulkan 2>&1 \
+        || echo "(missing — nixpkgs libgbm/EGL cannot load backends; run scripts/fix-opengl-driver.sh)"
     echo
     echo "--- live niri IPC (if a niri is running) ---"
     # niri >= 26.04 names the IPC socket niri.<wayland-display>.<pid>.sock

@@ -157,15 +157,22 @@ NIRI_SOCKET=$SOCK niri msg workspaces
 env WAYLAND_DISPLAY=wayland-1 nix shell nixpkgs#wayland-utils -c wayland-info | grep -A3 wl_output
 ```
 
-Drivers are Debian's; niri's mesa comes from nixpkgs. **Known root cause on non-NixOS**: nixpkgs libgbm looks for its backend under `/run/opengl-driver/lib/gbm`, a symlink only NixOS creates — on Debian it is missing and niri runs outputless:
+Drivers are Debian's; niri's mesa comes from nixpkgs. **Known root cause on non-NixOS**: nixpkgs patches its GL stack to look under `/run/opengl-driver`, a tree only NixOS creates. On Debian both stages fail:
 
 ```
 MESA-LOADER: failed to open dri: /run/opengl-driver/lib/gbm/dri_gbm.so
 WARN niri::backend::tty: error adding primary node device ... No such file or directory
+<after fixing the GBM symlink only>
+DEBUG niri::backend::tty: ... Unable to obtain a valid EGL Display.
+WARN niri::backend::tty: error adding primary node device ... no allocator available for device
 ```
 
-Fix (creates the symlink from the flake's own mesa + a tmpfiles.d entry so it
-survives reboots; re-run after nixpkgs lock updates):
+libglvnd's compiled-in EGL vendor search dirs are
+`/run/opengl-driver/share/glvnd/egl_vendor.d:/etc/glvnd/egl_vendor.d:/usr/share/glvnd/egl_vendor.d`,
+hence the EGL failure until that subdirectory exists too.
+
+Fix (mirrors the NixOS tree from the flake's own mesa + a tmpfiles.d entry so
+it survives reboots; re-run after nixpkgs lock updates):
 
 ```sh
 cd ~/nixos-conf && ./scripts/fix-opengl-driver.sh

@@ -2,23 +2,24 @@
 #
 # fix-opengl-driver.sh — make nixpkgs' GL work on a non-NixOS host (gear5th).
 #
-# nixpkgs libgbm/EGL are built to look for their drivers under
-# /run/opengl-driver (a symlink NixOS creates at boot). On Debian that path
-# does not exist, so niri (and every other nix GL app) fails to load the GBM
-# backend and runs with zero outputs:
+# nixpkgs patches its GL stack to look for drivers under /run/opengl-driver, a
+# tree NixOS creates at boot. On Debian the path does not exist, so niri fails
+# in two stages:
 #
-#   MESA-LOADER: failed to open dri: /run/opengl-driver/lib/gbm/dri_gbm.so
-#   WARN niri::backend::tty: error adding primary node device
+#   1. libgbm cannot load its backend:
+#        MESA-LOADER: failed to open dri: /run/opengl-driver/lib/gbm/dri_gbm.so
+#        WARN niri::backend::tty: error adding primary node device
+#   2. libglvnd cannot find an EGL vendor (compiled-in search dirs):
+#        /run/opengl-driver/share/glvnd/egl_vendor.d:/etc/glvnd/egl_vendor.d:/usr/share/glvnd/egl_vendor.d
+#        DEBUG niri::backend::tty: ... Unable to obtain a valid EGL Display.
 #
-# This script resolves the mesa paths from the flake's own niri closure,
-# symlinks them at /run/opengl-driver, and persists a systemd tmpfiles.d
-# entry so the symlinks survive reboots. Re-run it after nixpkgs lock
-# updates (store hashes change).
+# This script resolves the mesa package from the flake's own niri closure and
+# symlinks the same subdirectories NixOS exposes, then persists them with a
+# systemd tmpfiles.d entry so they survive reboots. Re-run it after nixpkgs
+# lock updates (store hashes change).
 #
 # Usage (needs root; the script re-execs itself with sudo):
 #   ./scripts/fix-opengl-driver.sh
-#
-# Requires the niri package to be built (nix build .#packages.x86_64-linux.myNiri).
 
 set -euo pipefail
 
@@ -28,8 +29,9 @@ fi
 
 REPO_DIR="${REPO_DIR:-$HOME/nixos-conf}"
 TMPFILES=/etc/tmpfiles.d/nix-opengl-driver.conf
+ROOT=/run/opengl-driver
 
-echo "[*] resolving mesa paths from the niri closure in $REPO_DIR"
+echo "[*] resolving mesa from the niri closure in $REPO_DIR"
 if [ ! -f "$REPO_DIR/flake.nix" ]; then
     echo "[x] flake not found at $REPO_DIR (set REPO_DIR)" >&2
     exit 1
@@ -40,35 +42,62 @@ trap 'rm -f "$closure"' EXIT
 # shellcheck disable=SC2164
 (cd "$REPO_DIR" && nix path-info -r .#packages.x86_64-linux.myNiri) > "$closure"
 
-GBM_DIR=""
-DRI_DIR=""
+MESA_ROOT=""
 while IFS= read -r p; do
-    [ -z "$GBM_DIR" ] && [ -f "$p/lib/gbm/dri_gbm.so" ] && GBM_DIR="$p/lib/gbm"
-    [ -z "$DRI_DIR" ] && [ -f "$p/lib/dri/radeonsi_dri.so" ] && DRI_DIR="$p/lib/dri"
+    if [ -z "$MESA_ROOT" ] && [ -f "$p/lib/gbm/dri_gbm.so" ] && [ -d "$p/share/glvnd/egl_vendor.d" ]; then
+        MESA_ROOT="$p"
+    fi
 done < "$closure"
 
-[ -n "$GBM_DIR" ] || { echo "[x] dri_gbm.so not found in the niri closure (build it first)" >&2; exit 1; }
-[ -n "$DRI_DIR" ] || { echo "[x] radeonsi_dri.so not found in the niri closure (build it first)" >&2; exit 1; }
+if [ -z "$MESA_ROOT" ]; then
+    echo "[x] no mesa package with dri_gbm.so + glvnd vendor found in the niri closure." >&2
+    echo "    Build it first: nix build .#packages.x86_64-linux.myNiri" >&2
+    exit 1
+fi
 
-echo "[*] gbm backend:  $GBM_DIR"
-echo "[*] dri drivers:  $DRI_DIR"
+echo "[*] mesa: $MESA_ROOT"
 
-mkdir -p /run/opengl-driver/lib
-ln -sfn "$GBM_DIR" /run/opengl-driver/lib/gbm
-ln -sfn "$DRI_DIR" /run/opengl-driver/lib/dri
-echo "[+] symlinks in /run/opengl-driver/lib:"
-ls -l /run/opengl-driver/lib/
+mkdir -p "$ROOT/lib" "$ROOT/share/glvnd" "$ROOT/share/vulkan"
 
-cat > "$TMPFILES" <<EOF
-# Managed by nixos-conf/scripts/fix-opengl-driver.sh — re-run it after
-# nixpkgs lock updates because the store hashes change.
-d /run/opengl-driver 0755 root root -
-d /run/opengl-driver/lib 0755 root root -
-L+ /run/opengl-driver/lib/gbm - - - - $GBM_DIR
-L+ /run/opengl-driver/lib/dri - - - - $DRI_DIR
-EOF
+link() { # link <target> <linkname>
+    [ -e "$1" ] || return 0
+    ln -sfn "$1" "$2"
+    echo "[+] $2 -> $1"
+}
+
+{
+    echo "# Managed by nixos-conf/scripts/fix-opengl-driver.sh — re-run it after"
+    echo "# nixpkgs lock updates because the store hashes change."
+    echo "d $ROOT 0755 root root -"
+    echo "d $ROOT/lib 0755 root root -"
+    echo "d $ROOT/share/glvnd 0755 root root -"
+    echo "d $ROOT/share/vulkan 0755 root root -"
+} > "$TMPFILES"
+
+add_tmpfiles_line() { # add_tmpfiles_line <linkname> <target>
+    printf 'L+ %s - - - - %s\n' "$1" "$2" >> "$TMPFILES"
+}
+
+link "$MESA_ROOT/lib/dri" "$ROOT/lib/dri"
+link "$MESA_ROOT/lib/gbm" "$ROOT/lib/gbm"
+link "$MESA_ROOT/share/glvnd/egl_vendor.d" "$ROOT/share/glvnd/egl_vendor.d"
+[ -d "$MESA_ROOT/lib/dri" ] && add_tmpfiles_line "$ROOT/lib/dri" "$MESA_ROOT/lib/dri"
+[ -d "$MESA_ROOT/lib/gbm" ] && add_tmpfiles_line "$ROOT/lib/gbm" "$MESA_ROOT/lib/gbm"
+[ -d "$MESA_ROOT/share/glvnd/egl_vendor.d" ] && add_tmpfiles_line "$ROOT/share/glvnd/egl_vendor.d" "$MESA_ROOT/share/glvnd/egl_vendor.d"
+
+# Vulkan ICDs are not needed by niri, but the same tree serves any nix Vulkan
+# app on this host.
+if [ -d "$MESA_ROOT/share/vulkan/icd.d" ]; then
+    link "$MESA_ROOT/share/vulkan/icd.d" "$ROOT/share/vulkan/icd.d"
+    add_tmpfiles_line "$ROOT/share/vulkan/icd.d" "$MESA_ROOT/share/vulkan/icd.d"
+fi
+
 echo "[+] persisted $TMPFILES"
-
 systemd-tmpfiles --create "$TMPFILES" >/dev/null 2>&1 || true
-echo "[+] done. Relogin on tty1 (sudo pkill -TERM -x niri first if needed) and check:"
+
+echo
+echo "[+] $ROOT now contains:"
+find "$ROOT" -maxdepth 3 -mindepth 1 | sort
+echo
+echo "[+] Next: sudo pkill -TERM -x niri, relogin on tty1, then"
 echo "    tail -80 /run/user/\$(id -u)/niri-console.log"
