@@ -33,7 +33,7 @@ print('noctalia.json synced from runtime settings')
 	# .settings attribute is what gets materialized.
 	flake.homeModules.noctalia = { pkgs, lib, flakeSelf, ... }: let
 		myNoctalia = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNoctalia;
-		runtimeSettings = (lib.importJSON ../../features/noctalia.json).settings;
+		runtimeSettings = (lib.importJSON ../features/noctalia.json).settings;
 	in {
 		home.packages = [ myNoctalia ];
 		xdg.configFile."noctalia/settings.json" = {
