@@ -25,4 +25,27 @@ print('noctalia.json synced from runtime settings')
 "
 		'';
 	};
+
+	# Portable user layer (non-NixOS hosts): install the shell plus the stored
+	# runtime settings. The repo's noctalia.json keeps the same shape
+	# sync-noctalia writes ({"settings": {...}}), while the runtime file
+	# (~/.config/noctalia/settings.json) holds the raw settings object, so the
+	# .settings attribute is what gets materialized.
+	flake.homeModules.noctalia = { pkgs, lib, flakeSelf, ... }: let
+		myNoctalia = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNoctalia;
+		runtimeSettings = (lib.importJSON ../features/noctalia.json).settings;
+	in {
+		home.packages = [ myNoctalia ];
+		xdg.configFile."noctalia/settings.json" = {
+			text = builtins.toJSON runtimeSettings;
+		};
+		# The lock screen authenticates through Quickshell.Services.Pam, which uses
+		# /etc/pam.d/<service> (default 'login'). Point it at the minimal service
+		# scripts/fix-pam-unix-chkpwd.sh writes, which only needs nixpkgs'
+		# pam_unix. Delivered through ~/.config/environment.d because that is what
+		# the systemd user manager imports: the GDM-launched niri.service and every
+		# process niri spawns (noctalia) inherit it. home.sessionVariables would
+		# land only in the shell profile, which a DM session never sources.
+		xdg.configFile."environment.d/noctalia-pam.conf".text = "NOCTALIA_PAM_SERVICE=noctalia-lock\n";
+	};
 }

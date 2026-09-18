@@ -38,6 +38,15 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Home-manager standalone: portable user configuration on non-NixOS hosts
+    # (gear5th/Debian) and the target layer for migrating chopper's user-level
+    # features later. Modules live in modules/features/* as flake.homeModules.*
+    # and the Debian host is modules/hosts/gear5th.
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake {inherit inputs;} (inputs.import-tree ./modules);

@@ -8,12 +8,51 @@
 		};
 	};
 
+	# Portable user layer (non-NixOS hosts): install the same config-baked niri
+	# package into the user profile. No display manager on Debian can load
+	# nix-store wayland sessions, so the portable zsh wrapper starts it from
+	# tty1 (see myZshPortable). GPU/DRM vs the Debian kernel drivers is the
+	# early validation area on gear5th.
+	flake.homeModules.niri = { pkgs, flakeSelf, ... }: {
+		home.packages = [
+			flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri
+			# The wrapper config enables xwayland-satellite, which execs
+			# `Xwayland` from PATH. On NixOS the system profile provides it;
+			# on a standalone session there is no system profile, so bring it
+			# explicitly or X11 apps (wezterm with enable_wayland=false)
+			# silently get no Xwayland.
+			pkgs.xwayland
+			# GL drivers for the /run/opengl-driver tree that nixpkgs' libgbm
+			# and libglvnd look for (scripts/fix-opengl-driver.sh points the
+			# tree here). On NixOS this comes from the system profile; in the
+			# profile it is also the GC root that keeps the drivers alive.
+			pkgs.mesa
+		];
+
+		# Display-manager path (scripts/install-niri-session.sh registers the
+		# GDM session): niri-session starts the systemd user unit `niri.service`
+		# and waits for it. The unit ships with the package (ExecStart points at
+		# the config-baked wrapper) and must live in the user manager's search
+		# path, which ~/.config/systemd/user is.
+		xdg.configFile."systemd/user/niri.service".source =
+			"${flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri}/share/systemd/user/niri.service";
+		xdg.configFile."systemd/user/niri-shutdown.target".source =
+			"${flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri}/share/systemd/user/niri-shutdown.target";
+	};
+
 	perSystem = { config, pkgs, lib, self', ... }: 
 	let
 		noctaliaCmd = lib.getExe self'.packages.myNoctalia;
 		terminalCmd = lib.getExe pkgs.wezterm;
 	in
 	{
+		# Flake-level handle on the GL drivers package the /run/opengl-driver
+		# tree must point to on non-NixOS hosts. Resolving it as an output is
+		# deterministic (no closure walking) and always matches the pin that
+		# also built libgbm/libglvnd for this host:
+		#   nix eval --raw .#packages.x86_64-linux.mesaDrivers.outPath
+		packages.mesaDrivers = pkgs.mesa;
+
 		packages.myNiri = inputs.wrapper-modules.wrappers.niri.wrap {
 			inherit pkgs;
 			settings = {
