@@ -7,7 +7,12 @@
 # --yes is given (headless or AI-agent use; requires passwordless sudo).
 #
 # Usage:
-#   ./bootstrap-gear5th.sh [--yes] [--no-reboot]
+#   ./bootstrap-gear5th.sh [--yes] [--no-reboot] [--dm|--tty]
+#
+#   --dm   install the niri session file and enable GDM (needed with Bluetooth
+#          keyboards, which are awkward at a bare tty login prompt)
+#   --tty  keep the display managers disabled and start niri from tty1
+#          (default when --yes is used without an explicit choice)
 #
 # Env overrides: REPO_URL, BRANCH, REPO_DIR, EXPECTED_USER
 #
@@ -22,6 +27,7 @@ REPO_DIR="${REPO_DIR:-$HOME/nixos-conf}"
 EXPECTED_USER="${EXPECTED_USER:-ejverat}"
 ASSUME_YES=0
 DO_REBOOT=1
+SESSION_MODE=ask
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 c_info=$'\033[1;34m'; c_ok=$'\033[1;32m'; c_warn=$'\033[1;33m'; c_err=$'\033[1;31m'; c_end=$'\033[0m'
@@ -156,7 +162,24 @@ activate() {
 }
 
 disable_display_managers() {
-    step "Display manager handling"
+    step "Session launch: display manager (GDM) or tty1 autostart"
+
+    if [ "$SESSION_MODE" = ask ]; then
+        if [ "$ASSUME_YES" -eq 1 ]; then
+            SESSION_MODE=tty
+            warn "--yes without --dm/--tty: defaulting to the tty1 autostart"
+        elif confirm "Use GDM (recommended with a Bluetooth keyboard) instead of the tty1 autostart? [y/N]"; then
+            SESSION_MODE=dm
+        else
+            SESSION_MODE=tty
+        fi
+    fi
+
+    if [ "$SESSION_MODE" = dm ]; then
+        info "installing the niri session file and enabling GDM"
+        "$REPO_DIR/scripts/install-niri-session.sh"
+        return
+    fi
 
     local dms=(gdm sddm lightdm ly greetd)
     local found=0
@@ -215,7 +238,9 @@ for arg in "$@"; do
     case "$arg" in
         --yes|-y) ASSUME_YES=1 ;;
         --no-reboot) DO_REBOOT=0 ;;
-        -h|--help) sed -n '1,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --dm) SESSION_MODE=dm ;;
+        --tty) SESSION_MODE=tty ;;
+        -h|--help) sed -n '1,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown argument: $arg (try --help)" 2 ;;
     esac
 done
@@ -232,10 +257,10 @@ disable_display_managers
 summary
 
 if [ "$DO_REBOOT" -eq 1 ]; then
-    if confirm "Reboot now to land in the niri session on tty1? [y/N]"; then
+    if confirm "Reboot now to land in the niri session? [y/N]"; then
         require_pwless_sudo
         sudo reboot
     else
-        info "Not rebooting. Log out and log in on tty1 (or reboot later) to start niri."
+        info "Not rebooting. Log out and back in (GDM: pick 'Niri'; tty mode: tty1) to start niri."
     fi
 fi

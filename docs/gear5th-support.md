@@ -10,9 +10,13 @@ breaks.
 
 - Debian (x86_64-linux), user normally `ejverat` (verify: `whoami`).
 - Nix installed via the Determinate Systems installer (or equivalent).
-- The session is **niri** (Wayland) started **from tty1 by the login shell** —
-  there is no display manager managing it (Debian DMs cannot load nix-store
-  wayland sessions).
+- The session is **niri** (Wayland). Two supported launch paths:
+  - **Display manager (recommended)**: `scripts/install-niri-session.sh` writes
+    `/usr/share/wayland-sessions/niri.desktop` (absolute Exec to the stable
+    profile path of `niri-session`) and enables GDM. Needed with Bluetooth
+    keyboards, which are awkward at a bare tty login prompt.
+  - **tty1 autostart**: the portable zsh wrapper `exec`s niri from tty1 when no
+    display manager owns it (see `myZshPortable`); inert while GDM runs.
 - Login shell is a Nix wrapper zsh (`myZshPortable`) that prepends the Nix
   profile to `PATH` and `exec niri` on tty1 when no display is running.
 - Secrets for pi are NOT Nix-managed here: they live in
@@ -29,6 +33,9 @@ breaks.
 | `modules/hosts/gear5th/default.nix` | `homeConfigurations.gear5th`; wires the shared home modules + host identity (inline HM module) |
 | `dotfiles/` | vendored portable configs (nvim, tmux, wezterm, `.zshrc`, cht.sh) |
 | `scripts/bootstrap-gear5th.sh` | one-shot bootstrap (clone → build → shell → activate → DM) |
+| `scripts/install-niri-session.sh` | GDM session file for niri + enable GDM/bluetooth |
+| `scripts/fix-opengl-driver.sh` | recreate the `/run/opengl-driver` tree nixpkgs expects |
+| `scripts/diag-gear5th.sh` | read-only fact collector for session/GPU/seat issues |
 | `odd/tasks/portable-home-manager.md` | design decisions + verification evidence |
 
 Runtime materialization (symlinks into the nix store, created by
@@ -114,6 +121,19 @@ nix flake check           # eval-only smoke test, catches module errors
 Report the full error + `HEAD` hash. Do not fix forward on gear5th alone.
 
 ### 6.3 niri does not start on tty1
+
+With a display manager instead, check the session entry:
+
+```sh
+cat /usr/share/wayland-sessions/niri.desktop   # Exec must be an ABSOLUTE path
+ls -l ~/.config/systemd/user/niri.service      # niri-session starts this unit
+systemctl --user start niri.service            # try it manually to see errors
+```
+
+`Exec=niri-session` (the package default) never resolves in a DM's minimal PATH,
+and DMs do not read nix-store session dirs — re-run
+`scripts/install-niri-session.sh` if the file looks wrong.
+
 niri's full output is teed to `$XDG_RUNTIME_DIR/niri-console.log` (readable over
 SSH), so the first diagnostic is always:
 

@@ -76,9 +76,28 @@ nix run ~/nixos-conf#homeConfigurations.gear5th.activationPackage
 
 ### 5. Start niri (session)
 
-Debian display managers cannot load wayland sessions from the nix store, so
-niri is started from tty1 by the portable zsh wrapper (`exec niri` when no
-display is running). If a DM owns tty1, disable it first:
+Pick one launch path:
+
+**Display manager (GDM)** — recommended with a Bluetooth keyboard:
+
+```sh
+cd ~/nixos-conf && ./scripts/install-niri-session.sh   # session file + enable GDM/bluetooth
+# pair the keyboard (needs it before the greeter is usable):
+bluetoothctl power on && bluetoothctl scan on   # put the keyboard in pairing mode
+bluetoothctl pair <MAC> && bluetoothctl trust <MAC> && bluetoothctl connect <MAC>
+sudo reboot                                      # then pick "Niri" in GDM
+```
+
+The session file Execs the stable `~/.nix-profile/bin/niri-session`; that script
+re-runs under your login shell (which puts the nix profile on PATH) and starts
+the `niri.service` user unit that the niri home module links into
+`~/.config/systemd/user/`.
+
+**tty1 autostart** — no display manager:
+
+Debian display managers cannot load wayland sessions from the nix store, so in
+this mode niri is started from tty1 by the portable zsh wrapper (`exec niri`
+when no display is running). Disable any DM first:
 
 ```sh
 sudo systemctl disable --now gdm   # or sddm / lightdm / ly

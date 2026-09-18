@@ -28,6 +28,16 @@
 			# profile it is also the GC root that keeps the drivers alive.
 			pkgs.mesa
 		];
+
+		# Display-manager path (scripts/install-niri-session.sh registers the
+		# GDM session): niri-session starts the systemd user unit `niri.service`
+		# and waits for it. The unit ships with the package (ExecStart points at
+		# the config-baked wrapper) and must live in the user manager's search
+		# path, which ~/.config/systemd/user is.
+		xdg.configFile."systemd/user/niri.service".source =
+			"${flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri}/share/systemd/user/niri.service";
+		xdg.configFile."systemd/user/niri-shutdown.target".source =
+			"${flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri}/share/systemd/user/niri-shutdown.target";
 	};
 
 	perSystem = { config, pkgs, lib, self', ... }: 
