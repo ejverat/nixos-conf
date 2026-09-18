@@ -1,8 +1,23 @@
-{ inputs, ... }: {
-  flake.nixosModules.pi = { pkgs, lib, ... }: let
+{ inputs, self, ... }: {
+  flake.nixosModules.pi = { config, pkgs, lib, ... }: let
+    myPi = self.packages.${pkgs.stdenv.hostPlatform.system}.myPi;
+  in {
+    environment.systemPackages = [ myPi ];
+  };
+
+  # Portable user layer (non-NixOS hosts): same wrapped binary on the user
+  # profile. The ~/.pi runtime dir (settings.json, npm packages, mcp.json,
+  # agent config) is user data and travels with the account.
+  flake.homeModules.pi = { pkgs, flakeSelf, ... }: {
+    home.packages = [
+      flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myPi
+    ];
+  };
+
+  perSystem = { pkgs, lib, inputs', ... }: let
     # pi-coding-agent from the dedicated nixpkgs-pi pin: gentle-pi requires
     # pi >= 0.85.1 while the main nixpkgs pin still ships an older release.
-    piPkgs = inputs.nixpkgs-pi.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+    piPkgs = inputs'.nixpkgs-pi.legacyPackages;
 
     # pi shells out to npm at startup for two things:
     #
@@ -25,7 +40,7 @@
     # two pins. No NPM_CONFIG_PREFIX is set on purpose: pi already passes an
     # explicit --prefix, and overriding npm's global prefix would only fight
     # the location pi actually reads packages back from.
-    pi = pkgs.symlinkJoin {
+    myPi = pkgs.symlinkJoin {
       name = "pi-coding-agent-${piPkgs.pi-coding-agent.version}";
       paths = [ piPkgs.pi-coding-agent ];
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -35,6 +50,6 @@
       '';
     };
   in {
-    environment.systemPackages = [ pi ];
+    packages.myPi = myPi;
   };
 }
