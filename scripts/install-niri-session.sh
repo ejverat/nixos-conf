@@ -71,15 +71,44 @@ echo "[+] wrote $SESSION_FILE:"
 sed 's/^/    /' "$SESSION_FILE"
 
 if [ "${ENABLE_GDM:-1}" = 1 ]; then
-    if systemctl list-unit-files gdm.service >/dev/null 2>&1; then
-        systemctl enable --now gdm
-        echo "[+] enabled and started gdm.service"
+    if ! systemctl cat gdm.service >/dev/null 2>&1; then
+        cat >&2 <<'EOF'
+[x] gdm.service not found: this system has no GDM installed.
+    Install it:  sudo apt install gdm3
+    Or use a lighter greeter (listed sessions come from
+    /usr/share/wayland-sessions, which this script fills):
+      sudo apt install greetd tuigreet
+EOF
     else
-        echo "[!] gdm.service not found; install it (sudo apt install gdm3) or enable"
-        echo "    your own display manager. The session file is already in place."
+        # Debian starts the DM from graphical.target through the
+        # display-manager.service alias. Enabling the unit alone is not enough
+        # when the machine still boots to multi-user.target.
+        before_default="$(systemctl get-default)"
+        if [ "$before_default" != "graphical.target" ]; then
+            systemctl set-default graphical.target
+            echo "[+] default target: $before_default -> graphical.target"
+        else
+            echo "[=] default target already graphical.target"
+        fi
+
+        systemctl enable gdm
+        echo "[+] gdm.service enabled"
+
+        systemctl restart gdm >/dev/null 2>&1 || systemctl start gdm >/dev/null 2>&1 || true
+        sleep 1
+
+        echo "[*] current state:"
+        echo "    default target : $(systemctl get-default)"
+        echo "    gdm enabled    : $(systemctl is-enabled gdm 2>&1)"
+        echo "    gdm active     : $(systemctl is-active gdm 2>&1)"
+        if [ -L /etc/systemd/system/display-manager.service ]; then
+            echo "    display-manager: -> $(readlink -f /etc/systemd/system/display-manager.service)"
+        else
+            echo "    display-manager: MISSING (gdm still starts via graphical.target)"
+        fi
     fi
 
-    if systemctl list-unit-files bluetooth.service >/dev/null 2>&1; then
+    if systemctl list-unit-files --type=service 2>/dev/null | grep -q '^bluetooth.service'; then
         systemctl enable --now bluetooth >/dev/null 2>&1 && echo "[+] bluetooth.service enabled (for the BT keyboard)"
     fi
 fi

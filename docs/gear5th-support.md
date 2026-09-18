@@ -261,6 +261,35 @@ journalctl --user -u niri -e | grep -i -E 'pam|auth'  # locker log if it still f
 
 Re-run the script after nixpkgs lock updates (the store hash changes).
 
+### 6.11 GDM does not start at boot
+
+On Debian the display manager is pulled in from `graphical.target` through the
+`display-manager.service` alias; enabling the unit alone is not enough when the
+machine still defaults to `multi-user.target`.
+
+```sh
+systemctl get-default                        # must be graphical.target
+systemctl is-enabled gdm                     # must be enabled
+ls -l /etc/systemd/system/display-manager.service
+systemctl status gdm -l --no-pager | head -30
+journalctl -b -u gdm --no-pager | tail -40
+```
+
+Fixes:
+
+```sh
+sudo systemctl set-default graphical.target  # if get-default was multi-user
+sudo systemctl enable gdm                    # if it was not enabled
+```
+
+If GDM starts and then crashes, the journal above says why (missing greeter
+packages, GL, etc.). A much lighter alternative that also lists the session
+file:
+
+```sh
+sudo apt install greetd tuigreet
+```
+
 ## 7. Updating (routine)
 
 ```sh
