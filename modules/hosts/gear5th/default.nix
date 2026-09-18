@@ -16,7 +16,13 @@
   # Host identity and minimal base. Kept inline (not a separate .nix file):
   # import-tree turns every .nix under modules/ into a flake-parts module, and
   # a home-manager module like this one would be mis-evaluated there.
-  hostModule = { pkgs, ... }: {
+  hostModule = { pkgs, flakeSelf, ... }: {
+    # The shared zsh module provides plugins/rc symlinks; the standalone host
+    # installs the portable wrapper (it is also the login shell binary, so it
+    # must stay in this profile for GC safety).
+    nixosConf.zsh.wrapper =
+      flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myZshPortable;
+
     home.username = "ejverat";
     home.homeDirectory = "/home/ejverat";
     home.stateVersion = "26.11"; # matches the master home-manager release

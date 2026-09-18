@@ -76,14 +76,33 @@ changes, so nothing is lost.
   `useUserPackages`, `backupFileExtension = "bak"`, `extraSpecialArgs`)
 - [x] Slice 2 — wezterm/tmux moved to the user profile, `dotfiles` vendored tree
   materialized at `~/.dotfiles`
-- [ ] Slice 3 — neovim
-- [ ] Slice 4 — zsh
-- [ ] Slice 5 — pi/gentle-pi/engram
+- [x] Slice 4 — zsh: the shared home module now owns the plugins and the
+  `~/.oh-my-zsh`, `~/.oh-my-zsh-custom`, `~/.zsh/zsh-autosuggestions` and
+  `~/powerlevel10k` symlinks on both hosts, replacing chopper's bespoke
+  `system.activationScripts.zsh-plugin-symlinks`; the wrapper flavor is
+  host-specific through `nixosConf.zsh.wrapper` (`myZsh` on chopper,
+  `myZshPortable` on gear5th, which is also gear5th's login-shell binary).
+  System-side and deliberately kept: `users.users.ejverat.shell`, `ZDOTDIR`
+  (verified the wrapper does NOT set it itself) and `FZF_BASE`.
+- [x] ~~Slice 3 (neovim)~~ — discarded: the shared value (the config) already
+  comes from the vendored dotfiles; moving only the package gains nothing, and
+  moving `EDITOR` to HM would lose it in shells because the wrapper runs with
+  `hmSessionVariables = null` (it never sources `hm-session-vars.sh`).
+- [x] ~~Slice 5 (pi/gentle-pi/engram)~~ — discarded: the `~/.pi/agent/settings.json`
+  merge has to stay a system activation (pi rewrites that file at runtime) and
+  gear5th installs those agents from npm, so relocating the packages is churn.
 
-Verified for slices 1-2: `nix flake check`, toplevel eval, full toplevel build
-(`nix build .#nixosConfigurations.chopper.config.system.build.toplevel`, 16s),
-and the built generation inspected: `result/etc/profiles/per-user/ejverat/bin`
-has `tmux`/`wezterm` (system profile no longer ships them) and the
-home-manager generation stages `~/.dotfiles/{config/nvim,config/tmux,
-config/wezterm,home/.zshrc,utilities/cht.sh}` plus
-`~/.config/wezterm/wezterm.lua`.
+## Verification (slices 1, 2, 4)
+
+- `nix flake check` — all checks passed.
+- chopper: toplevel eval + full build; the built `activate` no longer contains
+  `zsh-plugin-symlinks`; the user profile now ships `zsh` (myZsh) and `fzf`; the
+  home-manager generation stages `.oh-my-zsh`, `.oh-my-zsh-custom/plugins/
+  zsh-syntax-highlighting/*.plugin.zsh`, `.zsh/zsh-autosuggestions` and
+  `powerlevel10k` with the same store targets the old activation used.
+- gear5th: activation package builds and still contains `home-path/bin/zsh`
+  (the login shell must stay in the profile for GC safety).
+- Post-switch on chopper (slices 1-2): HM user environment identical to the
+  locally verified one, `/etc/set-environment` identical, no HM `.bak` conflicts,
+  `~/.dotfiles/{config/nvim,config/tmux,config/wezterm,home/.zshrc,utilities/cht.sh}`
+  and `~/.config/wezterm/wezterm.lua` are HM symlinks.

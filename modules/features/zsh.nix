@@ -4,66 +4,58 @@
   in {
     programs.zsh.enable = true;
     programs.zsh.ohMyZsh.enable = true;
-    environment.systemPackages = with pkgs; [
-      zsh-autosuggestions
-      zsh-powerlevel10k
-      zsh-syntax-highlighting
-      fzf
-    ];
+    # The plugin packages and the ~/.oh-my-zsh, ~/.zsh/ and ~/powerlevel10k
+    # symlinks are owned by flake.homeModules.zsh now (the same implementation
+    # gear5th uses), which replaced the bespoke activationScripts this module
+    # used to carry. What stays system-side is the login shell and the
+    # environment the wrapper needs.
     users.users.ejverat.shell = myZsh;
     environment.sessionVariables = {
+      # The wrapper does NOT set ZDOTDIR itself (verified: with the variable
+      # unset it comes up empty and zsh reads the wrong dot dirs), so this has
+      # to stay system-side.
       ZDOTDIR = myZsh.ZDOTDIR;
       FZF_BASE = "${pkgs.fzf}/share/fzf";
     };
-
-    system.activationScripts.zsh-plugin-symlinks = {
-      text = ''
-        # oh-my-zsh
-        ln -sfn ${pkgs.oh-my-zsh}/share/oh-my-zsh /home/ejverat/.oh-my-zsh
-        # custom plugins dir for nix-managed third-party plugins
-        mkdir -p /home/ejverat/.oh-my-zsh-custom/plugins
-        rm -rf /home/ejverat/.oh-my-zsh-custom/plugins/zsh-syntax-highlighting
-        mkdir -p /home/ejverat/.oh-my-zsh-custom/plugins/zsh-syntax-highlighting
-        cat > /home/ejverat/.oh-my-zsh-custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh << EOF
-source ${pkgs.zsh-syntax-highlighting}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-EOF
-        # legacy paths for direct sourcing in user's .zshrc
-        mkdir -p /home/ejverat/.zsh
-        rm -rf /home/ejverat/.zsh/zsh-autosuggestions
-        ln -sfn ${pkgs.zsh-autosuggestions}/share/zsh/plugins/zsh-autosuggestions /home/ejverat/.zsh/zsh-autosuggestions
-        rm -rf /home/ejverat/powerlevel10k
-        ln -sfn ${pkgs.zsh-powerlevel10k}/share/zsh/themes/powerlevel10k /home/ejverat/powerlevel10k
-      '';
-      deps = [ "users" ];
-    };
   };
 
-  # Portable user layer (non-NixOS hosts, e.g. gear5th/Debian): same plugins
-  # and rc files, but nothing root-rendered; the user's .zshrc already sources
-  # ~/.config/zsh/secrets.zsh when present. Starts niri from tty1 because no
-  # display manager on Debian can load nix-store wayland sessions.
-  flake.homeModules.zsh = { pkgs, lib, flakeSelf, ... }: let
-    myZshPortable = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myZshPortable;
-  in {
-    home.packages = with pkgs; [
-      myZshPortable
-      fzf
-      zsh-autosuggestions
-      zsh-syntax-highlighting
-      zsh-powerlevel10k
-      oh-my-zsh
-    ];
-    # Mirrors chopper's activationScripts.zsh-plugin-symlinks so the same
-    # ~/.zshrc sources resolve on both machines.
-    home.file = {
-      ".oh-my-zsh".source = "${pkgs.oh-my-zsh}/share/oh-my-zsh";
-      ".oh-my-zsh-custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh".text = ''
-        source ${pkgs.zsh-syntax-highlighting}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  # Shared user layer for every host (chopper and gear5th). The wrapper package
+  # is host-specific — myZsh sources sops-rendered secrets on NixOS while
+  # myZshPortable handles the standalone PATH and the tty1 session start — so
+  # each host sets nixosConf.zsh.wrapper instead of this module picking one.
+  flake.homeModules.zsh = { config, pkgs, lib, ... }: {
+    options.nixosConf.zsh.wrapper = lib.mkOption {
+      type = lib.types.nullOr lib.types.package;
+      default = null;
+      description = ''
+        Host-specific portable zsh wrapper to install. The module provides the
+        plugins, the rc-file symlinks and the environment; the wrapper flavor
+        comes from the host.
       '';
-      ".zsh/zsh-autosuggestions".source = "${pkgs.zsh-autosuggestions}/share/zsh/plugins/zsh-autosuggestions";
-      "powerlevel10k".source = "${pkgs.zsh-powerlevel10k}/share/zsh/themes/powerlevel10k";
     };
-    home.sessionVariables.FZF_BASE = "${pkgs.fzf}/share/fzf";
+
+    config = {
+      home.packages =
+        with pkgs; [
+          fzf
+          zsh-autosuggestions
+          zsh-syntax-highlighting
+          zsh-powerlevel10k
+          oh-my-zsh
+        ]
+        ++ lib.optional (config.nixosConf.zsh.wrapper != null) config.nixosConf.zsh.wrapper;
+
+      # The paths the vendored .zshrc sources, identical on both hosts.
+      home.file = {
+        ".oh-my-zsh".source = "${pkgs.oh-my-zsh}/share/oh-my-zsh";
+        ".oh-my-zsh-custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh".text = ''
+          source ${pkgs.zsh-syntax-highlighting}/share/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+        '';
+        ".zsh/zsh-autosuggestions".source = "${pkgs.zsh-autosuggestions}/share/zsh/plugins/zsh-autosuggestions";
+        "powerlevel10k".source = "${pkgs.zsh-powerlevel10k}/share/zsh/themes/powerlevel10k";
+      };
+      home.sessionVariables.FZF_BASE = "${pkgs.fzf}/share/fzf";
+    };
   };
 
   perSystem = { pkgs, self', ... }: let
