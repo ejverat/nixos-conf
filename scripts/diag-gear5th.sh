@@ -70,6 +70,16 @@ OUT=/tmp/gear5th-diag.txt
     ls -l /run/opengl-driver/lib /run/opengl-driver/share/glvnd /run/opengl-driver/share/vulkan 2>&1 \
         || echo "(missing — nixpkgs libgbm/EGL cannot load backends; run scripts/fix-opengl-driver.sh)"
     echo
+    echo "--- zsh plugin files: do their baked store paths still exist? ---"
+    for f in "$HOME"/.oh-my-zsh-custom/plugins/*/*.plugin.zsh; do
+        [ -e "$f" ] || continue
+        # grep -oE keeps only plausible store paths; a malformed subpath inside a
+        # package shows up here as a missing file.
+        while IFS= read -r p; do
+            [ -e "$p" ] && echo "  ok    $f -> $p" || echo "  BROKEN $f -> $p"
+        done < <(grep -oE '/nix/store/[A-Za-z0-9._+-]+[A-Za-z0-9._+/:-]*' "$f" 2>/dev/null | sort -u)
+    done
+    echo
     echo "--- live niri IPC (if a niri is running) ---"
     # niri >= 26.04 names the IPC socket niri.<wayland-display>.<pid>.sock
     # (not niri.sock); discover it instead of guessing.
