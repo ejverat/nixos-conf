@@ -77,9 +77,13 @@ Edit home.username and home.homeDirectory in that file (or regenerate with EXPEC
 
     if [[ -d "$HOME/.dotfiles" && ! -L "$HOME/.dotfiles" ]]; then
         warn "A previous ~/.dotfiles checkout exists (now managed declaratively by home-manager)."
-        if confirm "Move it to ~/.dotfiles.bak? [y/N]"; then
-            mv "$HOME/.dotfiles" "$HOME/.dotfiles.bak"
-            ok "moved ~/.dotfiles -> ~/.dotfiles.bak"
+        # Never let `mv` nest the checkout inside an existing backup directory
+        # (~/.dotfiles.bak/.dotfiles) when a previous migration left one behind.
+        local dotfiles_bak="$HOME/.dotfiles.bak"
+        [ -e "$dotfiles_bak" ] && dotfiles_bak="$HOME/.dotfiles.bak.$(date +%Y%m%d%H%M%S)"
+        if confirm "Move it to $dotfiles_bak? [y/N]"; then
+            mv "$HOME/.dotfiles" "$dotfiles_bak"
+            ok "moved ~/.dotfiles -> $dotfiles_bak"
         else
             warn "Leaving ~/.dotfiles in place; activation may fail if targets collide."
         fi
@@ -157,8 +161,37 @@ setup_login_shell() {
 
 activate() {
     step "Activate home-manager (as your user, no sudo)"
-    (cd "$REPO_DIR" && nix run .#homeConfigurations.gear5th.activationPackage)
+    # Standalone activation takes the backup extension from the environment:
+    # this is exactly what `home-manager switch -b bak` exports. With it, a real
+    # file/dir left on a managed path is moved to <path>.bak instead of aborting
+    # the whole run with "Existing file ... would be clobbered".
+    # (home-manager.backupFileExtension/backupCommand as *module options* only
+    # exist for NixOS and nix-darwin, not for this standalone configuration.)
+    # See docs/gear5th-support.md §6.1.
+    (cd "$REPO_DIR" && HOME_MANAGER_BACKUP_EXT=bak nix run .#homeConfigurations.gear5th.activationPackage)
     ok "home-manager activated; profile at ~/.nix-profile"
+
+    # Activation now succeeds even when files were moved aside, so verify that
+    # the paths the shell and the wrapped tools depend on really became
+    # home-manager symlinks.
+    local missing=0 path
+    for path in \
+        "$HOME/.oh-my-zsh" \
+        "$HOME/powerlevel10k" \
+        "$HOME/.zsh/zsh-autosuggestions" \
+        "$HOME/.config/noctalia/settings.json" \
+        "$HOME/.config/wezterm/wezterm.lua" \
+        "$HOME/.dotfiles/home/.zshrc"; do
+        if [ -L "$path" ]; then
+            ok "linked: $path"
+        else
+            warn "NOT a home-manager symlink: $path"
+            missing=1
+        fi
+    done
+    if [ "$missing" -ne 0 ]; then
+        warn "Some managed paths are not linked; look for leftover '.bak' conflicts (docs/gear5th-support.md §6.1)."
+    fi
 }
 
 disable_display_managers() {

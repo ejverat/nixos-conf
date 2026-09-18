@@ -97,19 +97,56 @@ cd ~/nixos-conf
 The script clones `https://github.com/ejverat/nixos-conf.git` on branch
 `feat/portable-home-manager` into `~/nixos-conf` (override with
 `REPO_URL`/`BRANCH`/`REPO_DIR` env vars). It will not run as root, prompts
-before every destructive step, and validates the flake before activating.
+before every destructive step, validates the flake before activating, and
+backs up conflicting files automatically during activation (§6.1), then
+verifies that the key managed paths really are symlinks.
 
 ## 6. Failure catalog
 
 ### 6.1 `home-manager switch` / activation fails with "existing file is in the way"
 **Cause:** a leftover real file/dir at a path home-manager wants to symlink
-(e.g. an old `~/.dotfiles` checkout, apt oh-my-zsh, `~/.config/wezterm`).
-**Fix:**
+(e.g. an old `~/.dotfiles` checkout, apt oh-my-zsh, `~/.config/wezterm`,
+`~/powerlevel10k`, `~/.zsh/zsh-autosuggestions`,
+`~/.config/noctalia/settings.json`).
+**Fix:** move the path aside, never delete it.
+
+`scripts/bootstrap-gear5th.sh` does this automatically: its activation step
+exports `HOME_MANAGER_BACKUP_EXT=bak`, so every colliding path is moved to
+`<path>.bak` during activation instead of aborting the run. That environment
+variable is the standalone-mode mechanism (what `home-manager switch -b bak`
+exports); the `home-manager.backupFileExtension` / `backupCommand` *options*
+only exist when home-manager runs as a NixOS/nix-darwin module and are **not**
+available in this standalone configuration.
+
+By hand:
+
 ```sh
+# automatic (equivalent to what the script does):
+cd ~/nixos-conf
+HOME_MANAGER_BACKUP_EXT=bak home-manager switch --flake .#gear5th
+# or move the paths named in the error first, then switch:
 mv ~/.dotfiles ~/.dotfiles.bak        # plus any other path named in the error
 home-manager switch --flake ~/nixos-conf#gear5th
 ```
-Do not `rm -rf`; move.
+
+Do not `rm -rf`; move. Two caveats:
+
+- Activation refuses to back a path up onto an existing backup
+  (`Existing file 'X.bak' would be clobbered by backing up 'X'`). Move the stale
+  `X.bak` aside first; never reach for `HOME_MANAGER_BACKUP_OVERWRITE`, it
+  destroys the previous backup.
+- Legacy relative symlinks that pointed into the old `~/.dotfiles` checkout
+  become dangling the moment it is moved. The important one is `~/.config/zsh`:
+  home-manager does not manage it, but the managed `.zshrc` sources
+  `~/.config/zsh/secrets.zsh` from it, so it must be a real directory:
+
+  ```sh
+  mv ~/.config/zsh{,.bak} && mkdir -p ~/.config/zsh   # then ~/.config/zsh/secrets.zsh
+  ```
+
+  The rest (`~/.config/{alacritty,rofi,waybar,hypr,awesome}`,
+  `~/.config/install*.sh`, `~/.config/.luarc.json`, `~/.themes`,
+  `~/.config/cht.sh`, ...) are inert leftovers from the pre-Nix stow setup.
 
 ### 6.2 Activation fails with a Nix/module option error
 **Cause:** repo drift, wrong branch, or an edit to shared modules.
