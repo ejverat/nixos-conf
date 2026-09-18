@@ -46,10 +46,18 @@
         ++ lib.optional (config.nixosConf.zsh.wrapper != null) config.nixosConf.zsh.wrapper;
 
       # The paths the vendored .zshrc sources, identical on both hosts.
+      # Every target path below was verified against the package layout — a wrong
+      # subpath here fails silently at shell start ("no such file or directory:
+      # ...source:1") instead of at build time, which is how a bad
+      # share/zsh/... path shipped unnoticed:
+      #   zsh-syntax-highlighting -> $out/share/zsh-syntax-highlighting/…
+      #   zsh-autosuggestions    -> $out/share/zsh/plugins/zsh-autosuggestions
+      #   powerlevel10k          -> $out/share/zsh/themes/powerlevel10k
+      #   oh-my-zsh              -> $out/share/oh-my-zsh
       home.file = {
         ".oh-my-zsh".source = "${pkgs.oh-my-zsh}/share/oh-my-zsh";
         ".oh-my-zsh-custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh".text = ''
-          source ${pkgs.zsh-syntax-highlighting}/share/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+          source ${pkgs.zsh-syntax-highlighting}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
         '';
         ".zsh/zsh-autosuggestions".source = "${pkgs.zsh-autosuggestions}/share/zsh/plugins/zsh-autosuggestions";
         "powerlevel10k".source = "${pkgs.zsh-powerlevel10k}/share/zsh/themes/powerlevel10k";
