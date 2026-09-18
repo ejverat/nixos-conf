@@ -13,28 +13,63 @@
       self.nixosModules.chopperHardware
       self.nixosModules.niri
       self.nixosModules.opencode
-      self.nixosModules.wezterm
       self.nixosModules.zsh
       self.nixosModules.neovim
-      self.nixosModules.tmux
       self.nixosModules.docker
       self.nixosModules.slack
-			self.nixosModules.claude-code
-			self.nixosModules.antigravity
-			self.nixosModules.google-chrome
-			self.nixosModules.kanshi
-			self.nixosModules.ollama
-			self.nixosModules.gimp
-			self.nixosModules.libreoffice
-			self.nixosModules.hyprpicker
-			self.nixosModules.chromium
-			self.nixosModules.deepseek-harness
-			self.nixosModules.pi
-			self.nixosModules.gentle-pi
-			self.nixosModules.engram
-			self.nixosModules.teams
-			self.nixosModules.secrets
-		];
+      self.nixosModules.claude-code
+      self.nixosModules.antigravity
+      self.nixosModules.google-chrome
+      self.nixosModules.kanshi
+      self.nixosModules.ollama
+      self.nixosModules.gimp
+      self.nixosModules.libreoffice
+      self.nixosModules.hyprpicker
+      self.nixosModules.chromium
+      self.nixosModules.deepseek-harness
+      self.nixosModules.pi
+      self.nixosModules.gentle-pi
+      self.nixosModules.engram
+      self.nixosModules.teams
+      self.nixosModules.secrets
+
+      # home-manager as a NixOS module: chopper consumes the same shared
+      # flake.homeModules.* as gear5th, so user-level config has one source of
+      # truth. System bits (sessions, /etc, setuid wrappers, sops) stay here.
+      inputs.home-manager.nixosModules.home-manager
+    ];
+
+    home-manager = {
+      useGlobalPkgs = true;
+      useUserPackages = true;
+      # Move a real file aside instead of aborting activation when it sits on a
+      # managed path (the standalone host learned this the hard way; see
+      # scripts/bootstrap-gear5th.sh). As a NixOS module this option exists,
+      # unlike in home-manager standalone.
+      backupFileExtension = "bak";
+      # The shared home modules resolve packages through the flake itself.
+      extraSpecialArgs = {
+        flakeSelf = self;
+        flakeInputs = inputs;
+      };
+      users.ejverat = {
+        imports = [
+          # Phase 2, slice 2 (user-level packages and the vendored dotfiles).
+          self.homeModules.dotfiles
+          self.homeModules.wezterm
+          self.homeModules.tmux
+          # Deliberately NOT imported on chopper:
+          #   niri      -> programs.niri (system) owns the session + DM wiring
+          #   noctalia  -> ~/.config/noctalia/settings.json is runtime state the
+          #                user tunes and syncs back with sync-noctalia
+          #   zsh/pi    -> slices 4 and 5
+        ];
+
+        home.username = "ejverat";
+        home.homeDirectory = "/home/ejverat";
+        home.stateVersion = "25.11";
+      };
+    };
 
     nix.settings.experimental-features = ["nix-command" "flakes"];
 
