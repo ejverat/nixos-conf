@@ -157,7 +157,11 @@ fi
 msg "enabling system services"
 for svc in "${SYSTEM_SERVICES[@]}"; do
     if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^$svc"; then
-        systemctl enable --now "$svc" >/dev/null 2>&1 && ok "$svc enabled" || warn "could not enable $svc"
+        if systemctl enable --now "$svc" >/dev/null 2>&1; then
+            ok "$svc enabled"
+        else
+            warn "could not enable $svc"
+        fi
     else
         warn "$svc unit not found; skipped"
     fi

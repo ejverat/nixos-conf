@@ -19,6 +19,7 @@ OUT=/tmp/gear5th-diag.txt
     echo
     echo "--- system ---"
     uname -a
+    # shellcheck source=/dev/null
     . /etc/os-release 2>/dev/null && echo "PRETTY_NAME=$PRETTY_NAME"
 
     echo
@@ -72,7 +73,7 @@ OUT=/tmp/gear5th-diag.txt
     echo "--- live niri IPC (if a niri is running) ---"
     # niri >= 26.04 names the IPC socket niri.<wayland-display>.<pid>.sock
     # (not niri.sock); discover it instead of guessing.
-    niri_sock="$(ls /run/user/1000/niri.*.sock 2>/dev/null | head -1)"
+    niri_sock="$(find /run/user/1000 -maxdepth 1 -name 'niri.*.sock' 2>/dev/null | head -1)"
     if [ -n "$niri_sock" ]; then
         ok_msg="(NIRI_SOCKET=$niri_sock)"
         export NIRI_SOCKET="$niri_sock"

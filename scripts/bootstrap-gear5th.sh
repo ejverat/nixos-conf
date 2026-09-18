@@ -199,12 +199,12 @@ disable_display_managers() {
 
     if [ "$SESSION_MODE" = ask ]; then
         if [ "$ASSUME_YES" -eq 1 ]; then
-            SESSION_MODE=tty
+            SESSION_MODE="tty"
             warn "--yes without --dm/--tty: defaulting to the tty1 autostart"
         elif confirm "Use GDM (recommended with a Bluetooth keyboard) instead of the tty1 autostart? [y/N]"; then
-            SESSION_MODE=dm
+            SESSION_MODE="dm"
         else
-            SESSION_MODE=tty
+            SESSION_MODE="tty"
         fi
     fi
 
@@ -273,8 +273,8 @@ for arg in "$@"; do
     case "$arg" in
         --yes|-y) ASSUME_YES=1 ;;
         --no-reboot) DO_REBOOT=0 ;;
-        --dm) SESSION_MODE=dm ;;
-        --tty) SESSION_MODE=tty ;;
+        --dm) SESSION_MODE="dm" ;;
+        --tty) SESSION_MODE="tty" ;;
         -h|--help) sed -n '1,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown argument: $arg (try --help)" 2 ;;
     esac
