@@ -66,8 +66,18 @@ OUT=/tmp/gear5th-diag.txt
     journalctl -b 2>/dev/null | grep -iE 'niri|xwayland|session' | tail -50 || echo "(journalctl unavailable)"
     echo
     echo "--- live niri IPC (if a niri is running) ---"
+    # niri >= 26.04 names the IPC socket niri.<wayland-display>.<pid>.sock
+    # (not niri.sock); discover it instead of guessing.
+    niri_sock="$(ls /run/user/1000/niri.*.sock 2>/dev/null | head -1)"
+    if [ -n "$niri_sock" ]; then
+        ok_msg="(NIRI_SOCKET=$niri_sock)"
+        export NIRI_SOCKET="$niri_sock"
+    else
+        ok_msg="(no niri IPC socket found in /run/user/1000)"
+    fi
+    echo "$ok_msg"
     niri msg version 2>&1 || echo "(no niri instance answering IPC)"
-    niri msg outputs 2>&1 || true
+    niri msg -j outputs 2>&1 || true
     niri msg workspaces 2>&1 || true
 } >"$OUT" 2>&1
 
@@ -75,18 +85,26 @@ echo "[+] collected -> $OUT"
 echo
 cat <<'EOF'
 Now the live checks first (non-intrusive). niri 26.04 removed the -L/--log-level
-flag, so use the IPC instead — it talks to the ALREADY RUNNING instance:
+flag and renamed the IPC socket to niri.<wayland-display>.<pid>.sock (the old
+niri.sock no longer exists), so discover it and use NIRI_SOCKET explicitly:
 
-  niri msg version      # is the real instance alive and answering?
-  niri msg outputs      # does it see any output? (empty list == the bug)
-  niri msg workspaces
+  SOCK=$(ls /run/user/1000/niri.*.sock 2>/dev/null | head -1)
+  echo "$SOCK"                                    # exists == niri is fully up
+  NIRI_SOCKET=$SOCK niri msg version
+  NIRI_SOCKET=$SOCK niri msg outputs              # empty list == the bug
+  NIRI_SOCKET=$SOCK niri msg workspaces
+
+Cross-check from the protocol side (same user, any session):
+
+  env WAYLAND_DISPLAY=wayland-1 nix shell nixpkgs#wayland-utils -c wayland-info \
+    | grep -A3 wl_output
 
 Interpretation:
-  - msg outputs lists a connector  -> niri is rendering; the problem is the
-    screen/session, not niri.
-  - msg outputs is EMPTY           -> niri runs outputless: DRM/modeset or
-    connector issue (with amdgpu, check the dmesg DRM lines and /dev/dri from
-    the collected file above).
+  - msg outputs lists a connector / wayland-info shows a wl_output
+    -> niri is rendering to an output; the problem is the screen/session.
+  - msg outputs is EMPTY / no wl_output globals
+    -> niri runs outputless: DRM/modeset or connector issue (with amdgpu,
+    check the dmesg DRM lines and /dev/dri from the collected file above).
 
 Manual reproduction with default logs (only if the instance was killed), on a
 second tty (Ctrl+Alt+F2); it prints richer output than the default start and

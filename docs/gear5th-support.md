@@ -134,12 +134,16 @@ you a plain shell for debugging.
 
 ### 6.4 niri session renders with software GPU / artifacts / screen stays on console logs
 First clarify whether niri is even seeing the display (the running instance is
-usually healthy — check via IPC before killing anything):
+usually healthy — check via IPC before killing anything). Note niri >= 26.04
+renamed the IPC socket to `niri.<wayland-display>.<pid>.sock` (no `niri.sock`)
+and dropped the `-L` log flag:
 
 ```sh
-niri msg version
-niri msg outputs      # empty list == niri runs outputless (DRM/modeset problem)
-niri msg workspaces
+SOCK=$(ls /run/user/1000/niri.*.sock 2>/dev/null | head -1)
+NIRI_SOCKET=$SOCK niri msg version
+NIRI_SOCKET=$SOCK niri msg outputs      # empty list == niri runs outputless (DRM/modeset problem)
+NIRI_SOCKET=$SOCK niri msg workspaces
+env WAYLAND_DISPLAY=wayland-1 nix shell nixpkgs#wayland-utils -c wayland-info | grep -A3 wl_output
 ```
 
 Drivers are Debian's; niri's mesa comes from nixpkgs.
