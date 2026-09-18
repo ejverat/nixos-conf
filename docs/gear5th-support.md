@@ -125,7 +125,16 @@ niri error directly, from tty2 log in and run `niri` manually — the wrapper
 zsh executes `exec niri` only on tty1 (`myZshPortable` zshrc), so tty2 gives
 you a plain shell for debugging.
 
-### 6.4 niri session renders with software GPU / artifacts
+### 6.4 niri session renders with software GPU / artifacts / screen stays on console logs
+First clarify whether niri is even seeing the display (the running instance is
+usually healthy — check via IPC before killing anything):
+
+```sh
+niri msg version
+niri msg outputs      # empty list == niri runs outputless (DRM/modeset problem)
+niri msg workspaces
+```
+
 Drivers are Debian's; niri's mesa comes from nixpkgs.
 ```sh
 journalctl -b -e | grep -iE 'niri|drm|gpu|vulkan' | tail -40

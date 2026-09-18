@@ -64,31 +64,44 @@ OUT=/tmp/gear5th-diag.txt
     echo
     echo "--- journalctl: niri / xwayland / session mentions ---"
     journalctl -b 2>/dev/null | grep -iE 'niri|xwayland|session' | tail -50 || echo "(journalctl unavailable)"
+    echo
+    echo "--- live niri IPC (if a niri is running) ---"
+    niri msg version 2>&1 || echo "(no niri instance answering IPC)"
+    niri msg outputs 2>&1 || true
+    niri msg workspaces 2>&1 || true
 } >"$OUT" 2>&1
 
 echo "[+] collected -> $OUT"
 echo
 cat <<'EOF'
-Now the manual trace step (this isolates GPU vs DRM/seat/env). From a SECOND
-tty (Ctrl+Alt+F2), log in as your user and run:
+Now the live checks first (non-intrusive). niri 26.04 removed the -L/--log-level
+flag, so use the IPC instead — it talks to the ALREADY RUNNING instance:
 
-  # 1) drop the stuck tty1 session back to the login prompt:
+  niri msg version      # is the real instance alive and answering?
+  niri msg outputs      # does it see any output? (empty list == the bug)
+  niri msg workspaces
+
+Interpretation:
+  - msg outputs lists a connector  -> niri is rendering; the problem is the
+    screen/session, not niri.
+  - msg outputs is EMPTY           -> niri runs outputless: DRM/modeset or
+    connector issue (with amdgpu, check the dmesg DRM lines and /dev/dri from
+    the collected file above).
+
+Manual reproduction with default logs (only if the instance was killed), on a
+second tty (Ctrl+Alt+F2); it prints richer output than the default start and
+can't hang your machine thanks to timeout:
+
   sudo pkill -TERM -x niri
-
-  # 2) reproduce with verbose logging (default config is fine for the test;
-  #    15s auto-timeout so it can't hang your machine):
-  timeout 15 niri -L trace 2>&1 | tail -40
-
-  # 3) GPU bisect: if trace hangs, force software rendering and retry:
-  timeout 15 env LIBGL_ALWAYS_SOFTWARE=1 niri -L trace 2>&1 | tail -40
+  timeout 15 niri 2>&1 | tail -60                                  # default logs
+  timeout 15 env LIBGL_ALWAYS_SOFTWARE=1 niri 2>&1 | tail -60      # swrast bisect
 
 Rules of interpretation:
-  - trace step 2 completes (renders)       -> GPU/DRM ok; problem is later
-  - trace 2 hangs, trace 3 (swrast) works  -> hardware GL/driver path is the
-    problem (nixpkgs mesa vs Debian GPU drivers)
-  - both hang                              -> DRM/seat/kernel or env issue
-  - last log line before the hang          -> report this line
+  - manual run renders                -> GPU/DRM ok; problem is later
+  - manual run hangs, swrast works    -> hardware GL/driver path is the problem
+  - both hang                         -> DRM/seat/kernel or env issue
+  - last log line before the hang     -> report this line
 
-Forward /tmp/gear5th-diag.txt plus the trace tails to the support agent
+Forward /tmp/gear5th-diag.txt plus the tails to the support agent
 (docs/gear5th-support.md) or to chopper.
 EOF
