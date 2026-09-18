@@ -16,6 +16,12 @@
 	flake.homeModules.niri = { pkgs, flakeSelf, ... }: {
 		home.packages = [
 			flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri
+			# The wrapper config enables xwayland-satellite, which execs
+			# `Xwayland` from PATH. On NixOS the system profile provides it;
+			# on a standalone session there is no system profile, so bring it
+			# explicitly or X11 apps (wezterm with enable_wayland=false)
+			# silently get no Xwayland.
+			pkgs.xwayland
 		];
 	};
 
