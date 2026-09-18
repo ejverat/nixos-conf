@@ -178,6 +178,8 @@ disable_display_managers() {
     if [ "$SESSION_MODE" = dm ]; then
         info "installing the niri session file and enabling GDM"
         "$REPO_DIR/scripts/install-niri-session.sh"
+        info "providing the setuid PAM helper the lock screen needs"
+        "$REPO_DIR/scripts/fix-pam-unix-chkpwd.sh"
         return
     fi
 

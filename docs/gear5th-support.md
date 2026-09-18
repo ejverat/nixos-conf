@@ -34,6 +34,7 @@ breaks.
 | `dotfiles/` | vendored portable configs (nvim, tmux, wezterm, `.zshrc`, cht.sh) |
 | `scripts/bootstrap-gear5th.sh` | one-shot bootstrap (clone → build → shell → activate → DM) |
 | `scripts/install-niri-session.sh` | GDM session file for niri + enable GDM/bluetooth |
+| `scripts/fix-pam-unix-chkpwd.sh` | setuid PAM helper so the lock screen accepts the password |
 | `scripts/fix-opengl-driver.sh` | recreate the `/run/opengl-driver` tree nixpkgs expects |
 | `scripts/diag-gear5th.sh` | read-only fact collector for session/GPU/seat issues |
 | `odd/tasks/portable-home-manager.md` | design decisions + verification evidence |
@@ -242,6 +243,23 @@ lazy.nvim clones plugins on first start: needs `git`. Some plugins compile:
 ```sh
 command -v gcc make || sudo apt install build-essential
 ```
+
+### 6.10 Lock screen rejects the password
+
+nixpkgs' `pam_unix.so` execs `/run/wrappers/bin/unix_chkpwd` (the setuid wrapper
+path NixOS creates). On Debian that path is missing, so a user process cannot
+verify a password and the noctalia/quickshell lock (`Quickshell.Services.Pam`)
+always fails.
+
+```sh
+ls -l /run/wrappers/bin/unix_chkpwd          # must exist and be setuid
+ls -l /usr/local/libexec/nix-unix_chkpwd     # -rwsr-xr-x root root
+ls -l /etc/pam.d/noctalia-lock               # minimal service
+cd ~/nixos-conf && ./scripts/fix-pam-unix-chkpwd.sh   # creates/repairs all three
+journalctl --user -u niri -e | grep -i -E 'pam|auth'  # locker log if it still fails
+```
+
+Re-run the script after nixpkgs lock updates (the store hash changes).
 
 ## 7. Updating (routine)
 

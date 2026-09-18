@@ -116,6 +116,10 @@ EOF
       zdotFilesDirname = "zsh-dot-dir-portable";
       zshenv.content = ''
         export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+        # Minimal PAM service for the noctalia lock screen (created by
+        # scripts/fix-pam-unix-chkpwd.sh); the default 'login' stack also works
+        # once the setuid unix_chkpwd helper exists.
+        export NOCTALIA_PAM_SERVICE="noctalia-lock"
       '';
       zshrc.content = zshCommon.zshrc.content + ''
         # Portable session: no display manager on Debian can launch a

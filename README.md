@@ -82,6 +82,7 @@ Pick one launch path:
 
 ```sh
 cd ~/nixos-conf && ./scripts/install-niri-session.sh   # session file + enable GDM/bluetooth
+./scripts/fix-pam-unix-chkpwd.sh                       # lock screen PAM (setuid helper)
 # pair the keyboard (needs it before the greeter is usable):
 bluetoothctl power on && bluetoothctl scan on   # put the keyboard in pairing mode
 bluetoothctl pair <MAC> && bluetoothctl trust <MAC> && bluetoothctl connect <MAC>
