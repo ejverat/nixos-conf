@@ -53,7 +53,36 @@ zsh base the session depends on. Later batches extend the same mechanism.
 
 ## Verification evidence
 
-- `nix build .#homeConfigurations.gear5th.activationPackage` succeeds.
+- `nix build .#homeConfigurations.gear5th.activationPackage` succeeds (4s on
+  chopper, store mostly warm from existing perSystem packages).
+- `home-files` staged correctly: ~/.dotfiles/{config/nvim,config/tmux,
+  config/wezterm,home/.zshrc,utilities/cht.sh}, ~/.config/noctalia/settings.json
+  (raw settings object), ~/.config/wezterm/wezterm.lua, ~/.oh-my-zsh,
+  ~/.oh-my-zsh-custom/…zsh-syntax-highlighting.plugin.zsh, ~/.zsh/zsh-autosuggestions,
+  ~/powerlevel10k. Profile bins: niri, niri-session, noctalia-shell, nvim, wezterm,
+  tmux, pi, fzf, git, rg, home-manager.
 - `nix eval .#nixosConfigurations.chopper.config.system.build.toplevel.drvPath`
-  still evaluates after the pi refactor.
-- Commit identities recorded below as they land.
+  unchanged after the pi refactor
+  (q2scwwfy2lnnwjfyld0w80a3dq273lhq-nixos-system-chopper-26.11.20260902.3ed67ec.drv);
+  packages.myPi = pi-coding-agent-0.85.1 (gentle-pi floor).
+- `nix flake check` all checks passed.
+
+## Lessons (for future hosts)
+
+- Nix flakes only see git-tracked files: new files under modules/ are invisible
+  until `git add` (cost ~10 min of debugging).
+- import-tree imports every .nix under modules/ as a flake-parts module: host
+  home-manager modules must stay inline in the host default.nix.
+- home-manager flake-module (`inputs.home-manager.flakeModules.default` in
+  modules/parts.nix) makes flake.homeModules mergeable; otherwise flake-parts
+  rejects multi-file definitions.
+
+## Commit identities
+
+- 4ff91a3 feat(flake): add home-manager input for portable user config
+- 9de6408 chore(dotfiles): vendor portable configs into the flake repo
+- 62f83a4 feat(home): portable home modules for dotfiles, neovim, wezterm, tmux
+- 9287098 feat(home): portable home modules for zsh, niri, noctalia
+- 2a9af13 feat(home): pi portable package and home module
+- 19624a0 feat(gear5th): home-manager host configuration for Debian
+- (README runbook lands with the docs commit)
