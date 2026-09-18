@@ -157,7 +157,20 @@ NIRI_SOCKET=$SOCK niri msg workspaces
 env WAYLAND_DISPLAY=wayland-1 nix shell nixpkgs#wayland-utils -c wayland-info | grep -A3 wl_output
 ```
 
-Drivers are Debian's; niri's mesa comes from nixpkgs.
+Drivers are Debian's; niri's mesa comes from nixpkgs. **Known root cause on non-NixOS**: nixpkgs libgbm looks for its backend under `/run/opengl-driver/lib/gbm`, a symlink only NixOS creates — on Debian it is missing and niri runs outputless:
+
+```
+MESA-LOADER: failed to open dri: /run/opengl-driver/lib/gbm/dri_gbm.so
+WARN niri::backend::tty: error adding primary node device ... No such file or directory
+```
+
+Fix (creates the symlink from the flake's own mesa + a tmpfiles.d entry so it
+survives reboots; re-run after nixpkgs lock updates):
+
+```sh
+cd ~/nixos-conf && ./scripts/fix-opengl-driver.sh
+sudo pkill -TERM -x niri       # then relogin on tty1
+```
 ```sh
 journalctl -b -e | grep -iE 'niri|drm|gpu|vulkan' | tail -40
 niri msg version
