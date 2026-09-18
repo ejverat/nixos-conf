@@ -8,6 +8,17 @@
 		};
 	};
 
+	# Portable user layer (non-NixOS hosts): install the same config-baked niri
+	# package into the user profile. No display manager on Debian can load
+	# nix-store wayland sessions, so the portable zsh wrapper starts it from
+	# tty1 (see myZshPortable). GPU/DRM vs the Debian kernel drivers is the
+	# early validation area on gear5th.
+	flake.homeModules.niri = { pkgs, flakeSelf, ... }: {
+		home.packages = [
+			flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri
+		];
+	};
+
 	perSystem = { config, pkgs, lib, self', ... }: 
 	let
 		noctaliaCmd = lib.getExe self'.packages.myNoctalia;

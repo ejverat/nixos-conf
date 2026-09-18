@@ -25,4 +25,19 @@ print('noctalia.json synced from runtime settings')
 "
 		'';
 	};
+
+	# Portable user layer (non-NixOS hosts): install the shell plus the stored
+	# runtime settings. The repo's noctalia.json keeps the same shape
+	# sync-noctalia writes ({"settings": {...}}), while the runtime file
+	# (~/.config/noctalia/settings.json) holds the raw settings object, so the
+	# .settings attribute is what gets materialized.
+	flake.homeModules.noctalia = { pkgs, lib, flakeSelf, ... }: let
+		myNoctalia = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNoctalia;
+		runtimeSettings = (lib.importJSON ../../features/noctalia.json).settings;
+	in {
+		home.packages = [ myNoctalia ];
+		xdg.configFile."noctalia/settings.json" = {
+			text = builtins.toJSON runtimeSettings;
+		};
+	};
 }
