@@ -58,12 +58,18 @@
           self.homeModules.dotfiles
           self.homeModules.wezterm
           self.homeModules.tmux
+          # Phase 2, slice 4: shared plugin/rc wiring; chopper installs its own
+          # wrapper flavor (secrets-aware myZsh) below.
+          self.homeModules.zsh
           # Deliberately NOT imported on chopper:
           #   niri      -> programs.niri (system) owns the session + DM wiring
           #   noctalia  -> ~/.config/noctalia/settings.json is runtime state the
           #                user tunes and syncs back with sync-noctalia
-          #   zsh/pi    -> slices 4 and 5
+          #   pi        -> slice 5 discarded: the ~/.pi settings activation stays
+          #                a system activation and the packages gain nothing
         ];
+
+        nixosConf.zsh.wrapper = self.packages.${pkgs.stdenv.hostPlatform.system}.myZsh;
 
         home.username = "ejverat";
         home.homeDirectory = "/home/ejverat";
