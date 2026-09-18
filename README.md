@@ -22,6 +22,16 @@ sudo nixos-rebuild switch --flake .#chopper
 
 ## Bootstrap gear5th (Debian)
 
+The quick path runs the one-shot script (interactive by default):
+
+```sh
+./scripts/bootstrap-gear5th.sh            # interactive
+./scripts/bootstrap-gear5th.sh --yes      # headless (needs passwordless sudo)
+```
+
+Manual steps (what the script automates), and the AI-agent troubleshooting
+catalog, live in [docs/gear5th-support.md](docs/gear5th-support.md).
+
 ### 1. Install Nix
 
 ```sh
