@@ -116,6 +116,13 @@
       zdotFilesDirname = "zsh-dot-dir-portable";
       zshenv.content = ''
         export PATH="$HOME/.local/bin:$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+        # Provider keys: rendered by the shared secrets home module from the age
+        # identity derived from ~/.ssh/id_ed25519 — the standalone analogue of
+        # chopper's /run/secrets/rendered/pi-provider-keys.env. Sourced from
+        # zshenv (not zshrc) so non-interactive shells get the keys too.
+        if [ -r "$HOME/.config/pi-provider-keys.env" ]; then
+          . "$HOME/.config/pi-provider-keys.env"
+        fi
         # Minimal PAM service for the noctalia lock screen (created by
         # scripts/fix-pam-unix-chkpwd.sh); the default 'login' stack also works
         # once the setuid unix_chkpwd helper exists.

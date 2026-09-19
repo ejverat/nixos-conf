@@ -58,6 +58,10 @@ in {
       self.homeModules.niri
       self.homeModules.noctalia
       self.homeModules.pi
+      # Provider keys: sops decrypted as the user with the age identity derived
+      # from ~/.ssh/id_ed25519, rendered to ~/.config/pi-provider-keys.env (the
+      # portable zsh sources it) instead of chopper's root-rendered /run/secrets.
+      self.homeModules.secrets
       # Nix-built pi ecosystem: gentle-pi (harness) and engram (memory). The
       # activations merge the store paths into ~/.pi/agent/settings.json, which
       # pi owns at runtime, exactly like chopper's system activations do.
