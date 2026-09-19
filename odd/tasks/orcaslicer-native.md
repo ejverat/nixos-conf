@@ -163,5 +163,7 @@ Runtime (task 8):
 4. **Two legacy process presets** exist only in the legacy backup
    (`0.20mm Standard - OVERTUNE Generic`, `.info` + `.json`); importing them
    is optional.
-5. **Work-unit commit is pending** and must not go to `main`: the repo's own
-   history is PR-based (`(#12)`), so this belongs on a feature branch.
+5. **Work-unit commit**
+   `cbb015e0b4bee2f344d5fb8ac969f86731e32b59` on
+   `feat/orcaslicer-native-gear5th` (branch cut from `main` at `f6c661b`).
+   Deliberately not committed to `main`: this repo's history is PR-based.
