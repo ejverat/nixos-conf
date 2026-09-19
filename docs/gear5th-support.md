@@ -36,6 +36,7 @@ breaks.
 | `scripts/install-niri-session.sh` | GDM session file for niri + enable GDM/bluetooth |
 | `scripts/fix-pam-unix-chkpwd.sh` | setuid PAM helper so the lock screen accepts the password |
 | `scripts/debian-system-services.sh` | Debian system layer: apt packages, systemd services, firmware, Bluetooth (`--check` is read-only) |
+| `scripts/seed-gentle-profiles.sh` | seeds the gentle-profile routing profiles from the vendored copies (no SSH/network needed between hosts) |
 | `scripts/fix-opengl-driver.sh` | recreate the `/run/opengl-driver` tree nixpkgs expects |
 | `scripts/diag-gear5th.sh` | read-only fact collector for session/GPU/seat issues |
 | `odd/tasks/portable-home-manager.md` | design decisions + verification evidence |
