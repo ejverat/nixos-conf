@@ -1,5 +1,10 @@
 # gear5th Support Guide (AI-agent assisted)
 
+> Rebuilding this host from scratch is a different job: see
+> [docs/gear5th.md](gear5th.md) for the install runbook (order of scripts, what
+> to back up, secrets and SSH-key caveats). This document is the failure catalog
+> to use once the machine is up and something misbehaves.
+
 You are helping with **gear5th**, a Debian machine that is configured from the
 `nixos-conf` flake through **home-manager standalone** (no NixOS). The user
 also owns `chopper` (NixOS), which shares this same repo. Read this document
