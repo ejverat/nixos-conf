@@ -7,27 +7,33 @@
 # --yes is given (headless or AI-agent use; requires passwordless sudo).
 #
 # Usage:
-#   ./bootstrap-gear5th.sh [--yes] [--no-reboot] [--dm|--tty]
+#   ./bootstrap-gear5th.sh [--yes] [--no-reboot] [--dm|--tty] [--minimal]
 #
-#   --dm   install the niri session file and enable GDM (needed with Bluetooth
-#          keyboards, which are awkward at a bare tty login prompt)
-#   --tty  keep the display managers disabled and start niri from tty1
-#          (default when --yes is used without an explicit choice)
+#   --dm        install the niri session file and enable GDM (needed with
+#               Bluetooth keyboards, which are awkward at a bare tty login)
+#   --tty       keep the display managers disabled and start niri from tty1
+#               (default when --yes is used without an explicit choice)
+#   --minimal   only the flake/home-manager part (clone, build, activate, login
+#               shell, session choice); skip the Debian system layer and the
+#               non-NixOS integration scripts. Use it to update an already
+#               configured host.
 #
 # Env overrides: REPO_URL, BRANCH, REPO_DIR, EXPECTED_USER
 #
-# See docs/gear5th-support.md for the full runbook and failure catalog.
+# Runbooks: docs/gear5th.md (rebuild order, what to back up) and
+# docs/gear5th-support.md (failure catalog for an AI agent).
 
 set -euo pipefail
 
 # ── Configuration ──────────────────────────────────────────────────────────
 REPO_URL="${REPO_URL:-https://github.com/ejverat/nixos-conf.git}"
-BRANCH="${BRANCH:-feat/portable-home-manager}"
+BRANCH="${BRANCH:-main}"
 REPO_DIR="${REPO_DIR:-$HOME/nixos-conf}"
 EXPECTED_USER="${EXPECTED_USER:-ejverat}"
 ASSUME_YES=0
 DO_REBOOT=1
 SESSION_MODE=ask
+SKIP_EXTRAS=0
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 c_info=$'\033[1;34m'; c_ok=$'\033[1;32m'; c_warn=$'\033[1;33m'; c_err=$'\033[1;31m'; c_end=$'\033[0m'
@@ -194,6 +200,33 @@ activate() {
     fi
 }
 
+# ── Debian system layer and non-NixOS integrations ─────────────────────────
+# All of them are idempotent, so re-running the bootstrap is always safe;
+# --minimal skips them for the "update the flake on a configured host" case.
+
+setup_system_services() {
+    step "Debian system layer (apt + systemd: firmware, bluetooth, audio, printers)"
+    require_pwless_sudo
+    "$REPO_DIR/scripts/debian-system-services.sh"
+}
+
+fix_opengl_driver() {
+    step "OpenGL driver tree (/run/opengl-driver, needed by nixpkgs' libgbm + glvnd)"
+    require_pwless_sudo
+    "$REPO_DIR/scripts/fix-opengl-driver.sh"
+}
+
+fix_lock_screen_pam() {
+    step "Lock screen PAM helper (setuid unix_chkpwd + /etc/pam.d/noctalia-lock)"
+    require_pwless_sudo
+    "$REPO_DIR/scripts/fix-pam-unix-chkpwd.sh"
+}
+
+seed_pi_profiles() {
+    step "gentle-profile routing profiles"
+    "$REPO_DIR/scripts/seed-gentle-profiles.sh"
+}
+
 disable_display_managers() {
     step "Session launch: display manager (GDM) or tty1 autostart"
 
@@ -211,8 +244,6 @@ disable_display_managers() {
     if [ "$SESSION_MODE" = dm ]; then
         info "installing the niri session file and enabling GDM"
         "$REPO_DIR/scripts/install-niri-session.sh"
-        info "providing the setuid PAM helper the lock screen needs"
-        "$REPO_DIR/scripts/fix-pam-unix-chkpwd.sh"
         return
     fi
 
@@ -257,14 +288,18 @@ Validation checklist (after login, inside the niri session):
   wezterm start &
   pi --version
 
-First-run extras on Debian:
-  sudo apt install build-essential xclip    # nvim/lazy compile deps + tmux clipboard
-  mkdir -p ~/.config/zsh; chmod 600 ~/.config/zsh/secrets.zsh
-    # export OPENCODE_API_KEY="..." / export DEEPSEEK_API_KEY="..."
+Provider keys come from sops: the shared secrets module renders
+~/.config/pi-provider-keys.env (0400) and the portable zsh sources it.
+  pi auth check --provider deepseek --json
+  pi auth check --provider opencode-go --json
 
-Provider keys for pi go in ~/.config/zsh/secrets.zsh (sourced by the dotfiles .zshrc).
+Model routing:
+  gentle-profile list && gentle-profile current && gentle-profile auto
 
-Diagnostics live in docs/gear5th-support.md — hand it to an AI agent if something breaks.
+Runbooks:
+  docs/gear5th.md          rebuild order and what to back up
+  docs/gear5th-support.md  failure catalog for an AI agent
+  scripts/diag-gear5th.sh  read-only fact dump when something misbehaves
 EOF
 }
 
@@ -275,19 +310,31 @@ for arg in "$@"; do
         --no-reboot) DO_REBOOT=0 ;;
         --dm) SESSION_MODE="dm" ;;
         --tty) SESSION_MODE="tty" ;;
-        -h|--help) sed -n '1,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --minimal) SKIP_EXTRAS=1 ;;
+        -h|--help) awk 'NR>1 && /^set -euo/{exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) die "unknown argument: $arg (try --help)" 2 ;;
     esac
 done
 
 # ── Main ───────────────────────────────────────────────────────────────────
 info "gear5th bootstrap — branch $BRANCH"
+if [ "$SKIP_EXTRAS" -eq 1 ]; then
+    info "--minimal: skipping the Debian system layer and the non-NixOS integrations"
+fi
 preflight
 clone_or_update_repo
 verify_flake
 build_activation
+if [ "$SKIP_EXTRAS" -eq 0 ]; then
+    setup_system_services
+fi
 activate
 setup_login_shell
+if [ "$SKIP_EXTRAS" -eq 0 ]; then
+    fix_opengl_driver
+    fix_lock_screen_pam
+    seed_pi_profiles
+fi
 disable_display_managers
 summary
 

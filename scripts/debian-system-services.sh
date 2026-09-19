@@ -30,7 +30,7 @@ for arg in "$@"; do
     case "$arg" in
         --check) CHECK_ONLY=1 ;;
         --load-modules) LOAD_MODULES=1 ;;
-        -h|--help) awk '/^set -euo/{exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
+        -h|--help) awk 'NR>1 && /^set -euo/{exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "[x] unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
