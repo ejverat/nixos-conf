@@ -116,6 +116,13 @@
       zdotFilesDirname = "zsh-dot-dir-portable";
       zshenv.content = ''
         export PATH="$HOME/.local/bin:$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+        # Nix-built tools need the nix locale archive: perl (pinned for
+        # gentle-profile) prints "Setting locale failed" for every call without
+        # it, and a PAM/SSH session never sees home-manager's environment.d,
+        # which carries only the versioned LOCALE_ARCHIVE_2_27 alias.
+        if [ -z "''${LOCALE_ARCHIVE:-}" ]; then
+          export LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive"
+        fi
         # Provider keys: rendered by the shared secrets home module from the age
         # identity derived from ~/.ssh/id_ed25519 — the standalone analogue of
         # chopper's /run/secrets/rendered/pi-provider-keys.env. Sourced from
