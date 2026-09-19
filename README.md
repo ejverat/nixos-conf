@@ -26,15 +26,23 @@ tracker: `odd/tasks/chopper-home-manager.md`.
 
 ## Bootstrap gear5th (Debian)
 
-The quick path runs the one-shot script (interactive by default):
+One command covers the whole rebuild: clone, build and activate home-manager, the
+login shell, the Debian system layer (`debian-system-services.sh`) and the
+non-NixOS integrations (`fix-opengl-driver.sh`, `fix-pam-unix-chkpwd.sh`,
+`seed-gentle-profiles.sh`), then the session:
 
 ```sh
-./scripts/bootstrap-gear5th.sh            # interactive
+./scripts/bootstrap-gear5th.sh --dm       # GDM + niri session (recommended)
+./scripts/bootstrap-gear5th.sh --tty      # niri started from tty1 instead
 ./scripts/bootstrap-gear5th.sh --yes      # headless (needs passwordless sudo)
+./scripts/bootstrap-gear5th.sh --minimal  # only the flake/home-manager part
 ```
 
-Manual steps (what the script automates), and the AI-agent troubleshooting
-catalog, live in [docs/gear5th-support.md](docs/gear5th-support.md).
+Every sudo step asks first, and all of them are idempotent, so re-running the
+script is safe. The steps below are what it automates — handy for reference or to
+re-run one by hand. The full rebuild runbook is
+[docs/gear5th.md](docs/gear5th.md); the AI-agent troubleshooting catalog is
+[docs/gear5th-support.md](docs/gear5th-support.md).
 
 ### 0. System layer (apt + systemd)
 
