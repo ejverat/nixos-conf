@@ -47,15 +47,21 @@ in {
       text = ''
         src="${homeDir}/.pi/gentle-ai/gentle-profile"
         dst="${homeDir}/.local/bin/gentle-profile"
+        vendored="${../../dotfiles/pi-gentle-ai/gentle-profile}"
 
-        if [ -x "$src" ]; then
-          mkdir -p "$(dirname "$dst")"
-          ln -sfn "$src" "$dst"
-          chown -h ${user}:users "$dst" 2>/dev/null || true
-          chown ${user}:users "$(dirname "$dst")" 2>/dev/null || true
+        if [ ! -f "$src" ]; then
+          mkdir -p "$(dirname "$src")"
+          install -m 0755 "$vendored" "$src"
+          chown ${user}:users "$src" 2>/dev/null || true
+          echo "gentle-profile: seeded $src from the vendored copy"
         else
-          echo "gentle-profile: $src does not exist yet; skipping link" >&2
+          chmod u+x "$src" 2>/dev/null || true
         fi
+
+        mkdir -p "$(dirname "$dst")"
+        ln -sfn "$src" "$dst"
+        chown -h ${user}:users "$dst" 2>/dev/null || true
+        chown ${user}:users "$(dirname "$dst")" 2>/dev/null || true
       '';
     };
 
@@ -116,15 +122,29 @@ in {
     # deterministic and documents the dependency next to what needs it.
     home.packages = [ pkgs.perl ];
 
-    # The gentle-ai runtime writes this script on first use, so the link is
-    # only created once it exists. Never fatal.
+    # The gentle-ai runtime writes this script into its config home on first use,
+    # but the Nix package only ships the runtime binary and the pi extension, so a
+    # fresh host can end up without it (that is what happened on gear5th: the
+    # activation had nothing to link). Seed the vendored copy when it is missing —
+    # never overwrite, so a runtime-provided version always wins — make sure it is
+    # runnable, and link it so `gentle-profile` resolves by bare name.
+    # `pi --version` does NOT load extensions: only a real session materializes
+    # runtime files, which is why the seeding matters.
     home.activation.gentleProfileLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       src="$HOME/.pi/gentle-ai/gentle-profile"
       dst="$HOME/.local/bin/gentle-profile"
-      if [ -x "$src" ]; then
-        mkdir -p "$(dirname "$dst")"
-        ln -sfn "$src" "$dst"
+      vendored="${../../dotfiles/pi-gentle-ai/gentle-profile}"
+
+      if [ ! -f "$src" ]; then
+        mkdir -p "$(dirname "$src")"
+        install -m 0755 "$vendored" "$src"
+        echo "gentle-profile: seeded $src from the vendored copy"
+      else
+        chmod u+x "$src" 2>/dev/null || true
       fi
+
+      mkdir -p "$HOME/.local/bin"
+      ln -sfn "$src" "$dst"
     '';
 
     # Same additive merge as the NixOS variant: pi rewrites this file at

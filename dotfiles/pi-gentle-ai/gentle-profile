@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+#
+# gentle-profile — cambia el routing de modelos de los agentes de el Gentleman.
+#
+#   gentle-profile list             perfiles disponibles
+#   gentle-profile current          qué perfil está activo
+#   gentle-profile probe            ¿hay cuota en opencode-go ahora?
+#   gentle-profile apply <nombre>   aplica un perfil
+#   gentle-profile base             atajo de: apply base
+#   gentle-profile bonus            atajo de: apply bonus
+#   gentle-profile auto             probe + aplica el que corresponda
+#
+# Un perfil es un archivo en profiles/<nombre>.json y es la única fuente de
+# verdad: de ahí se generan tanto ~/.pi/gentle-ai/models.json (routing) como
+# los model_profiles de ~/.pi/agent/subagents.json. Así no pueden divergir.
+#
+set -euo pipefail
+
+CONFIG_HOME="${GENTLE_PI_CONFIG_HOME:-$HOME/.pi/gentle-ai}"
+AGENT_HOME="${GENTLE_PI_AGENT_HOME:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}}"
+PROFILES_DIR="$CONFIG_HOME/profiles"
+MODELS_JSON="$CONFIG_HOME/models.json"
+SUBAGENTS_JSON="$AGENT_HOME/subagents.json"
+BACKUP_DIR="$CONFIG_HOME/backups"
+STATE_FILE="$CONFIG_HOME/.active-profile"
+PROBE_MODEL="${GENTLE_PROFILE_PROBE_MODEL:-opencode-go/deepseek-v4-flash}"
+PROBE_TIMEOUT="${GENTLE_PROFILE_PROBE_TIMEOUT:-90}"
+
+die()  { printf 'gentle-profile: %s\n' "$*" >&2; exit 1; }
+warn() { printf 'gentle-profile: %s\n' "$*" >&2; }
+
+require_perl() {
+  command -v perl >/dev/null 2>&1 || die "falta perl en el PATH"
+  perl -MJSON::PP -e1 2>/dev/null || die "perl no tiene el módulo JSON::PP"
+}
+
+profile_path() { printf '%s/%s.json' "$PROFILES_DIR" "$1"; }
+
+profile_exists() { [ -f "$(profile_path "$1")" ]; }
+
+read_state() { [ -f "$STATE_FILE" ] && cat "$STATE_FILE" || true; }
+
+validate_profile() {
+  local file="$1" err
+  if ! err="$(perl -MJSON::PP -e '
+    my $p = JSON::PP->new->decode(do { local $/; open my $f, "<", $ARGV[0] or die "no se pudo leer: $!"; <$f> });
+    die "falta la clave routing\n" unless ref $p->{routing} eq "HASH";
+    die "routing vacío\n" unless keys %{ $p->{routing} };
+    for my $a (sort keys %{ $p->{routing} }) {
+      my $e = $p->{routing}{$a};
+      die "entrada inválida para $a\n" unless ref $e eq "HASH";
+      die "$a sin model\n" unless defined $e->{model} && length $e->{model};
+    }
+  ' "$file" 2>&1)"; then
+    die "perfil inválido $(basename "$file"): $(printf '%s' "$err" | head -1)"
+  fi
+}
+
+count_agents() {
+  perl -MJSON::PP -e '
+    my $p = JSON::PP->new->decode(do { local $/; open my $f, "<", $ARGV[0] or die; <$f> });
+    print scalar keys %{ $p->{routing} };
+  ' "$1"
+}
+
+# ---------------------------------------------------------------- list/current
+
+cmd_list() {
+  [ -d "$PROFILES_DIR" ] || die "no existe $PROFILES_DIR"
+  local active; active="$(read_state)"
+  printf 'Perfiles en %s\n\n' "$PROFILES_DIR"
+  local found=0
+  for file in "$PROFILES_DIR"/*.json; do
+    [ -e "$file" ] || continue
+    found=1
+    local name; name="$(basename "$file" .json)"
+    local mark=" "; [ "$name" = "$active" ] && mark="*"
+    printf '  %s %-10s %2s agentes  %s\n' "$mark" "$name" "$(count_agents "$file")" \
+      "$(perl -MJSON::PP -e 'my $p=JSON::PP->new->decode(do{local $/;open my $f,"<",$ARGV[0] or die;<$f>}); print $p->{description}//""' "$file" | cut -c1-60)"
+  done
+  [ "$found" = 1 ] || printf '  (sin perfiles)\n'
+  printf '\n* = último aplicado (según %s)\n' "$STATE_FILE"
+}
+
+cmd_current() {
+  local active; active="$(read_state)"
+  printf 'último perfil aplicado : %s\n' "${active:-<ninguno>}"
+  printf '  %s : %s\n' "$MODELS_JSON" "$([ -f "$MODELS_JSON" ] && echo existe || echo FALTA)"
+  printf '  %s : %s\n' "$SUBAGENTS_JSON" "$([ -f "$SUBAGENTS_JSON" ] && echo existe || echo FALTA)"
+
+  [ -f "$MODELS_JSON" ] || return 0
+  printf '\nrouting vivo vs perfiles guardados:\n'
+  local match=0
+  for file in "$PROFILES_DIR"/*.json; do
+    [ -e "$file" ] || continue
+    local name; name="$(basename "$file" .json)"
+    if perl -MJSON::PP -e '
+        my $j = JSON::PP->new->canonical;
+        my $live = $j->decode(do { local $/; open my $a, "<", $ARGV[0] or die; <$a> });
+        my $prof = $j->decode(do { local $/; open my $b, "<", $ARGV[1] or die; <$b> });
+        exit(($j->encode($live) eq $j->encode($prof->{routing})) ? 0 : 1);
+      ' "$MODELS_JSON" "$file" 2>/dev/null; then
+      printf '  = %s\n' "$name"; match=1
+    fi
+  done
+  [ "$match" = 1 ] || printf '  (ninguno — el routing vivo fue editado a mano o por /gentle:models)\n'
+}
+
+# ---------------------------------------------------------------------- probe
+
+cmd_probe() {
+  command -v pi >/dev/null 2>&1 || die "pi no está en el PATH"
+  command -v timeout >/dev/null 2>&1 || die "falta el comando timeout"
+
+  printf 'sondeando %s (timeout %ss)...\n' "$PROBE_MODEL" "$PROBE_TIMEOUT" >&2
+
+  # Las variables PI_* las exporta una sesión de pi a sus hijos y pisarían
+  # --model. Hay que limpiarlas o el sondeo miente.
+  local out rc=0
+  out="$(env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+              -u PI_SESSION_ID -u PI_SESSION_FILE \
+              timeout "$PROBE_TIMEOUT" pi -p --no-session -nt \
+              --model "$PROBE_MODEL" "reply with OK only" 2>&1)" || rc=$?
+
+  if printf '%s' "$out" | grep -q 'GoUsageLimitError\|Weekly usage limit reached'; then
+    local reset; reset="$(printf '%s' "$out" | grep -o 'Resets in [^.]*' | head -1)"
+    printf 'LIMITADO — cuota semanal de opencode-go agotada. %s\n' "${reset:-}"
+    return 1
+  fi
+  if printf '%s' "$out" | grep -q '429'; then
+    printf 'LIMITADO — 429 de opencode-go (rate limit).\n'
+    return 1
+  fi
+  if [ "$rc" -ne 0 ]; then
+    printf 'DESCONOCIDO — el sondeo falló (rc=%s):\n%s\n' "$rc" "$(printf '%s' "$out" | head -c 300)" >&2
+    return 2
+  fi
+  printf 'DISPONIBLE — opencode-go responde.\n'
+  return 0
+}
+
+# ---------------------------------------------------------------------- apply
+
+cmd_apply() {
+  local name="${1:-}"
+  [ -n "$name" ] || die "falta el nombre del perfil (ver: gentle-profile list)"
+  profile_exists "$name" || die "no existe el perfil '$name' en $PROFILES_DIR"
+  local file; file="$(profile_path "$name")"
+  validate_profile "$file"
+
+  local previous; previous="$(read_state)"
+
+  mkdir -p "$BACKUP_DIR" "$AGENT_HOME"
+  local stamp; stamp="$(date +%Y%m%d-%H%M%S)"
+  local dst="$BACKUP_DIR/$stamp"
+  mkdir -p "$dst"
+  [ -f "$MODELS_JSON" ] && cp "$MODELS_JSON" "$dst/models.json"
+  [ -f "$SUBAGENTS_JSON" ] && cp "$SUBAGENTS_JSON" "$dst/subagents.json"
+  printf 'backup: %s\n' "$dst"
+
+  # Los temporales viven en el directorio destino: mv queda atómico y no
+  # dejamos contenido de config en /tmp.
+  local tmp_models tmp_sub
+  tmp_models="$(mktemp "$CONFIG_HOME/.models.json.XXXXXX")"
+  trap 'rm -f "${tmp_models:-}" "${tmp_sub:-}"' EXIT
+
+  # models.json = el bloque routing del perfil, tal cual.
+  perl -MJSON::PP -e '
+    my $p = JSON::PP->new->decode(do { local $/; open my $f, "<", $ARGV[0] or die; <$f> });
+    print JSON::PP->new->pretty->canonical->encode($p->{routing});
+  ' "$file" > "$tmp_models"
+  perl -MJSON::PP -e '
+    JSON::PP->new->decode(do { local $/; open my $f, "<", $ARGV[0] or die "no se pudo leer: $!"; <$f> });
+  ' "$tmp_models" || die "models.json generado no es JSON válido"
+  mv "$tmp_models" "$MODELS_JSON"
+
+  # subagents.json: se preservan las claves que no tocamos (max_concurrency,
+  # default_mode, profiles de agentes ajenos) y solo se reemplaza lo nuestro.
+  # Los agentes que poseía el perfil anterior pero no el nuevo se eliminan.
+  tmp_sub="$(mktemp "$AGENT_HOME/.subagents.json.XXXXXX")"
+  local prev_file=""
+  [ -n "$previous" ] && profile_exists "$previous" && prev_file="$(profile_path "$previous")"
+
+  perl -MJSON::PP -e '
+    my ($new_file, $sub_file, $prev_file) = @ARGV;
+    my $j = JSON::PP->new->canonical;
+    my $read = sub {
+      my ($path) = @_;
+      open my $f, "<", $path or return undef;
+      local $/; return $j->decode(<$f>);
+    };
+
+    my $profile = $read->($new_file) or die "no se pudo leer el perfil nuevo\n";
+    my $sub = $read->($sub_file) // {};
+    my %profiles = %{ $sub->{model_profiles} // {} };
+
+    # Soltar los agentes que el perfil anterior poseía.
+    if ($prev_file && -f $prev_file) {
+      my $prev = $read->($prev_file);
+      if ($prev && ref $prev->{routing} eq "HASH") {
+        delete $profiles{$_} for keys %{ $prev->{routing} };
+      }
+    }
+
+    for my $agent (sort keys %{ $profile->{routing} }) {
+      my $e = $profile->{routing}{$agent};
+      my %entry;
+      $entry{model}  = $e->{model}    if defined $e->{model};
+      $entry{effort} = $e->{thinking} if defined $e->{thinking};
+      $profiles{$agent} = \%entry;
+    }
+
+    $sub->{default_model}  = $profile->{default_model}  if defined $profile->{default_model};
+    $sub->{default_effort} = $profile->{default_effort} if defined $profile->{default_effort};
+    $sub->{model_profiles} = \%profiles;
+
+    print JSON::PP->new->pretty->canonical->encode($sub);
+  ' "$file" "$SUBAGENTS_JSON" "$prev_file" > "$tmp_sub"
+  mv "$tmp_sub" "$SUBAGENTS_JSON"
+
+  printf '%s\n' "$name" > "$STATE_FILE"
+
+  # Releer y reportar desde disco, no desde lo que creemos que escribimos.
+  perl -MJSON::PP -e '
+    my $j = JSON::PP->new->canonical;
+    my $read = sub { open my $f, "<", $_[0] or die "no se pudo releer $_[0]: $!"; local $/; return $j->decode(<$f>); };
+    my $models = $read->($ARGV[0]);
+    my $sub    = $read->($ARGV[1]);
+    my $mp     = $sub->{model_profiles};
+
+    # models.json y model_profiles deben coincidir para cada agente del perfil.
+    # model_profiles PUEDE tener agentes extra (agentes propios del usuario),
+    # por eso no se comparan los totales, se verifica la inclusión.
+    my @mismatch;
+    for my $a (sort keys %{ $models }) {
+      push @mismatch, "$a falta en model_profiles" unless $mp->{$a};
+      next unless $mp->{$a};
+      push @mismatch, "$a: model ($models->{$a}{model} vs $mp->{$a}{model})"
+        unless ($models->{$a}{model} // "") eq ($mp->{$a}{model} // "");
+      push @mismatch, "$a: thinking/effort ($models->{$a}{thinking} vs $mp->{$a}{effort})"
+        unless ($models->{$a}{thinking} // "") eq ($mp->{$a}{effort} // "");
+    }
+    if (@mismatch) {
+      print STDERR "inconsistencia entre models.json y subagents.json:\n";
+      print STDERR "  - $_\n" for @mismatch;
+      exit 1;
+    }
+
+    my $routed = keys %{ $models };
+    my $total  = keys %{ $mp };
+    my $extra  = $total - $routed;
+
+    my (%by_model, %by_effort);
+    $by_model{$mp->{$_}{model}}++ for keys %{ $models };
+    $by_effort{$mp->{$_}{effort} // "(sin effort)"}++ for keys %{ $models };
+
+    printf "\nperfil aplicado: %s\n", $ARGV[2];
+    printf "agentes ruteados: %s (models.json y subagents.json consistentes)\n", $routed;
+    printf "total en subagents.json: %s%s\n", $total,
+      ($extra > 0 ? " ($extra ajeno(s) al perfil, preservado(s))" : "");
+    printf "default_model  : %s\n", $sub->{default_model} // "(sin setear)";
+    printf "default_effort : %s\n", $sub->{default_effort} // "(sin setear)";
+    print  "\npor modelo:\n";
+    printf "  %-38s %s\n", $_, $by_model{$_} for sort keys %by_model;
+    print  "\npor effort:\n";
+    printf "  %-38s %s\n", $_, $by_effort{$_} for sort keys %by_effort;
+  ' "$MODELS_JSON" "$SUBAGENTS_JSON" "$name"
+}
+
+# ----------------------------------------------------------------------- auto
+
+cmd_auto() {
+  local rc=0
+  cmd_probe || rc=$?
+  case "$rc" in
+    0) printf '\n→ aplicando perfil bonus\n' >&2; cmd_apply bonus ;;
+    1) printf '\n→ aplicando perfil base\n'  >&2; cmd_apply base ;;
+    *) die "sondeo desconocido (rc=$rc); no aplico nada. Decidí a mano: gentle-profile apply base|bonus" ;;
+  esac
+}
+
+usage() {
+  cat <<'USAGE'
+  gentle-profile — cambia el routing de modelos de los agentes de el Gentleman.
+
+    gentle-profile list             perfiles disponibles
+    gentle-profile current          qué perfil está activo
+    gentle-profile probe            ¿hay cuota en opencode-go ahora?
+    gentle-profile apply <nombre>   aplica un perfil
+    gentle-profile base             atajo de: apply base
+    gentle-profile bonus            atajo de: apply bonus
+    gentle-profile auto             probe + aplica el que corresponda
+
+  Un perfil es un archivo en profiles/<nombre>.json y es la única fuente de
+  verdad: de ahí se generan tanto ~/.pi/gentle-ai/models.json (routing) como
+  los model_profiles de ~/.pi/agent/subagents.json. Así no pueden divergir.
+USAGE
+}
+
+main() {
+  require_perl
+  local cmd="${1:-help}"; shift || true
+  case "$cmd" in
+    list)               cmd_list ;;
+    current|status)     cmd_current ;;
+    probe)              cmd_probe ;;
+    apply)              cmd_apply "${1:-}" ;;
+    base|bonus)         cmd_apply "$cmd" ;;
+    auto)               cmd_auto ;;
+    help|-h|--help)     usage ;;
+    *)                  printf 'comando desconocido: %s\n\n' "$cmd" >&2; usage; exit 2 ;;
+  esac
+}
+
+main "$@"
