@@ -1,15 +1,18 @@
 # sops creation rules for this repo.
 #
-# The age recipient is the public half of the host's ed25519 SSH key, so the
-# encrypted secrets can only be decrypted by this machine (or anything holding
-# that host key). Re-derive it with:
-#   ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub
+# The age recipients are the public halves of the machines' ed25519 SSH keys, so
+# the encrypted secrets can only be decrypted by those holders:
+#   chopper  -> /etc/ssh/ssh_host_ed25519_key (root sops)
+#   gear5th  -> ~/.ssh/id_ed25519 (sops-nix home-manager module, user mode)
+# Re-derive either with: ssh-to-age -i <public key>
 keys:
   - &chopper age1jgzvhjr0jve40hu4mcq8vgstt60jlsxlzt0z9zgc2ljve706hanqcqavvq
+  - &gear5th age1qn6vgl2a5yczcv7h0h07nmwflep74jfa6xguw6e2hkhca89rldwq5h4qa4
 
 creation_rules:
-  # Anything under secrets/ ending in .yaml gets encrypted to the host key.
+  # Anything under secrets/ ending in .yaml gets encrypted to both machines.
   - path_regex: secrets/[^/]+\.yaml$
     key_groups:
       - age:
           - *chopper
+          - *gear5th
