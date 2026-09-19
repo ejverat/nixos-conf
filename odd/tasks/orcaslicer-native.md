@@ -167,3 +167,42 @@ Runtime (task 8):
    `cbb015e0b4bee2f344d5fb8ac969f86731e32b59` on
    `feat/orcaslicer-native-gear5th` (branch cut from `main` at `f6c661b`).
    Deliberately not committed to `main`: this repo's history is PR-based.
+
+## GTK theme (reported after #18 merged)
+
+The native app opened in a light theme while the Flatpak opened dark. Cause:
+gear5th's `~/.config/gtk-3.0/settings.ini` names
+`Nordic-bluish-accent-standard-buttons-v40`, but `~/.themes` does not exist (the
+files only survive under `~/.dotfiles.bak/home/.themes`, which the `dotfiles`
+module does not materialize), so GTK cannot resolve the theme and falls back to
+Adwaita light. OrcaSlicer is effectively the only GTK3 app on gear5th, which is
+why this went unnoticed. The Flatpak was immune by accident: its sandbox
+redirects `XDG_CONFIG_HOME` to `~/.var/app/<id>/config`, whose `gtk-3.0/` is
+empty, so it used the host gsettings value (`Flat-Remix-GTK-Blue-Dark`,
+`prefer-dark`) through its `org.gtk.Gtk3theme.*` extension instead.
+
+Decision: fix it **for OrcaSlicer only**, not globally. `GTK_THEME` takes
+precedence over `settings.ini` and touches nothing else, which also avoids
+landing on `~/.config/gtk-3.0/settings.ini` — a real file that a home-manager
+`gtk` module would have to take over, the same class of activation collision
+noted for the standalone host. Theme chosen: `Adwaita-dark`, already present in
+`/usr/share/themes`, so no new dependency.
+
+Implementation notes worth keeping:
+
+- The package's `bin/orca-slicer` is a compiled `wrapGAppsHook3` wrapper whose
+  real binary is `bin/.orca-slicer-wrapped`. `wrapProgram` would rename the
+  target to `.<name>-wrapped` and overwrite that 68 MB binary, so the module
+  builds a fresh `symlinkJoin` wrapper over the absolute store path instead.
+- Verified safe because the gapps wrapper execs `.orca-slicer-wrapped` by
+  absolute path and the real binary resolves `share/OrcaSlicer` by absolute
+  path. The produced wrapper has **zero** self-references, so there is no
+  recursion, and `--info` on a real STL still succeeds through it.
+- `flat-remix-gtk` is **gone from nixpkgs** (it depended on
+  `gtk-engine-murrine`, dropped with GTK2), so the Flatpak's exact look is not
+  reproducible from nixpkgs. `pkgs.nordic` does exist and provides
+  `Nordic-bluish-accent-standard-buttons` (no `-v40` suffix) if that look is
+  preferred later.
+- Work-unit commit:
+  `f31d2cba129791bfb3d6c675969d8e7df21e7b05` on
+  `feat/orcaslicer-dark-theme` (branch cut from `main` at `5e1dec0`).
