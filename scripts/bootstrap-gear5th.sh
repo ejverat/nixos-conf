@@ -311,7 +311,7 @@ for arg in "$@"; do
         --dm) SESSION_MODE="dm" ;;
         --tty) SESSION_MODE="tty" ;;
         --minimal) SKIP_EXTRAS=1 ;;
-        -h|--help) awk '/^set -euo/{exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
+        -h|--help) awk 'NR>1 && /^set -euo/{exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) die "unknown argument: $arg (try --help)" 2 ;;
     esac
 done
