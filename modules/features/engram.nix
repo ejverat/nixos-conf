@@ -55,7 +55,10 @@ in {
     gentleEngram = flakeSelf.packages.${system}.gentle-engram;
     agentDir = "${config.home.homeDirectory}/.pi/agent";
   in {
-    home.packages = [ engram gentleEngram ];
+    # Only the server CLI goes on PATH: the gentle-engram extension is loaded by
+    # the path written into settings.json (see the note in gentle-pi.nix about
+    # why both extensions cannot sit in home.packages at once).
+    home.packages = [ engram ];
 
     home.activation.piEngram = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       agentDir="${agentDir}"
