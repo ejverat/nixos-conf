@@ -1,4 +1,8 @@
 { self, inputs, ... }: let
+  # Shared with the home-manager variant below (see the file for why it lives
+  # under modules/lib/_).
+  piSettings = import ../lib/_pi-settings.nix;
+
   # gentle-ai release pinned by gentle-pi v3.2.0 itself
   # (scripts/gentle-ai-installer.mjs, INSTALLER_VERSION). The binary is a
   # static Go executable, so the official signed release runs fine on NixOS
@@ -81,24 +85,52 @@ in {
           chown ${user}:users "$settings"
         fi
 
-        tmp=$(${pkgs.coreutils}/bin/mktemp)
-        if ${pkgs.jq}/bin/jq --arg pkg "${package}" '
-          .packages = (
-            ((.packages // [])
-              | map(select(
-                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$"))
-                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$"))))
-                  | not)))
-            + [$pkg] | unique)
-        ' "$settings" > "$tmp"; then
-          # In-place write keeps the file owned by the user.
-          ${pkgs.coreutils}/bin/cat "$tmp" > "$settings"
-        else
-          echo "pi-gentle-pi: could not merge into $settings; leaving it unchanged" >&2
-        fi
-        ${pkgs.coreutils}/bin/rm -f "$tmp"
+        ${piSettings {
+          inherit pkgs package;
+          pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
+        }}
       '';
     };
+  };
+
+  # Portable user layer (non-NixOS hosts, e.g. gear5th/Debian). home-manager
+  # activations already run as the user, so there is no ownership juggling; the
+  # ~/.local/bin entry for `gentle-profile` lives in the portable zsh wrapper
+  # (see the zsh module), matching chopper's session variable.
+  flake.homeModules.gentle-pi = { config, pkgs, lib, flakeSelf, ... }: let
+    package = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.gentle-pi;
+    agentDir = "${config.home.homeDirectory}/.pi/agent";
+  in {
+    # Keep the store path alive: pi loads this extension by path, and this
+    # profile entry is what protects it from the garbage collector.
+    home.packages = [ package ];
+
+    # The gentle-ai runtime writes this script on first use, so the link is
+    # only created once it exists. Never fatal.
+    home.activation.gentleProfileLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      src="$HOME/.pi/gentle-ai/gentle-profile"
+      dst="$HOME/.local/bin/gentle-profile"
+      if [ -x "$src" ]; then
+        mkdir -p "$(dirname "$dst")"
+        ln -sfn "$src" "$dst"
+      fi
+    '';
+
+    # Same additive merge as the NixOS variant: pi rewrites this file at
+    # runtime, so it cannot be managed declaratively.
+    home.activation.piGentlePi = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      agentDir="${agentDir}"
+      settings="$agentDir/settings.json"
+      mkdir -p "$agentDir"
+      if [ ! -f "$settings" ]; then
+        echo '{}' > "$settings"
+      fi
+
+      ${piSettings {
+        inherit pkgs package;
+        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
+      }}
+    '';
   };
 
   perSystem = { pkgs, inputs', ... }: let
