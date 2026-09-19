@@ -127,8 +127,46 @@
   # sources, mirroring chopper's /run/secrets path. The secrets file must list
   # that key's age recipient; re-encrypt with `sops updatekeys secrets/secrets.yaml`
   # (the nixosModule above ships the sops-updatekeys wrapper for that).
-  flake.homeModules.secrets = {config, pkgs, ...}: {
+  flake.homeModules.secrets = {config, pkgs, ...}: let
+    # Same convenience as the NixOS module, but user-mode: the age identity is
+    # the user's own SSH key, so there is no sudo and no host key involved. The
+    # derived age key is materialized into a 0600 temp file and shredded on exit;
+    # it is deliberately NOT persisted to ~/.config/sops/age/keys.txt, because
+    # that file would be an unprotected copy of a key derived from the SSH one.
+    mkSopsWrapper = name: extra: pkgs.writeShellApplication {
+      inherit name;
+      runtimeInputs = [pkgs.sops pkgs.coreutils pkgs.ssh-to-age];
+      text = ''
+        set -euo pipefail
+
+        ssh_key="''${SOPS_EDIT_SSH_KEY:-$HOME/.ssh/id_ed25519}"
+        target="''${1:-secrets/secrets.yaml}"
+
+        if [ ! -r "$ssh_key" ]; then
+          echo "${name}: cannot read $ssh_key" >&2
+          exit 1
+        fi
+
+        tmp="$(mktemp)"
+        chmod 600 "$tmp"
+        trap 'rm -f "$tmp"' EXIT
+
+        # Fails on a passphrase-protected key: ssh-to-age cannot prompt here.
+        ssh-to-age -private-key -i "$ssh_key" > "$tmp"
+
+        SOPS_AGE_KEY_FILE="$tmp" sops ${extra} "$target"
+      '';
+    };
+  in {
     imports = [inputs.sops-nix.homeManagerModules.default];
+
+    # `sops-edit` opens the decrypted file in $EDITOR and re-encrypts it on save
+    # (to every recipient listed in .sops.yaml, so chopper keeps its access).
+    # `sops-updatekeys` re-wraps the data key after adding a recipient.
+    home.packages = [
+      (mkSopsWrapper "sops-edit" "")
+      (mkSopsWrapper "sops-updatekeys" "updatekeys")
+    ];
 
     sops.age.sshKeyPaths = ["${config.home.homeDirectory}/.ssh/id_ed25519"];
     sops.defaultSopsFile = ../../secrets/secrets.yaml;
