@@ -1,0 +1,31 @@
+{
+  "name": "bonus",
+  "description": "Aprovecha la cuota semanal de opencode-go, pero solo en fases cortas e interrumpibles. La ruta critica con estado (sdd-design, sdd-apply, sdd-verify) y los escritores siguen sobre creditos medidos de DeepSeek: si la cuota muere a mitad de un apply, la cadena no se rompe. Requiere que opencode-go tenga disponibilidad.",
+  "default_model": "deepseek/deepseek-flash",
+  "default_effort": "low",
+  "routing": {
+    "sdd-init": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "sdd-onboard": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "sdd-explore": { "model": "opencode-go/deepseek-v4.1-flash", "thinking": "low" },
+    "sdd-research": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "sdd-proposal": { "model": "opencode-go/deepseek-v4.1-flash", "thinking": "low" },
+    "sdd-spec": { "model": "opencode-go/deepseek-v4.1-flash", "thinking": "high" },
+    "sdd-tasks": { "model": "opencode-go/deepseek-v4.1-flash", "thinking": "high" },
+    "sdd-status": { "model": "opencode-go/qwen3.8-flash", "thinking": "off" },
+    "sdd-sync": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "sdd-archive": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "gentle-ai-explore": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "gentle-ai-verify": { "model": "opencode-go/qwen3.8-flash", "thinking": "low" },
+    "review-risk": { "model": "opencode-go/glm-5.3", "thinking": "high" },
+    "review-reliability": { "model": "opencode-go/qwen3.8-max", "thinking": "high" },
+    "review-resilience": { "model": "opencode-go/kimi-k2.7-code", "thinking": "high" },
+    "review-readability": { "model": "opencode-go/minimax-m3", "thinking": "low" },
+    "jd-judge-a": { "model": "opencode-go/glm-5.3", "thinking": "high" },
+    "jd-judge-b": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-design": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-apply": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-verify": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "gentle-ai-worker": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "jd-fix-agent": { "model": "deepseek/deepseek-flash", "thinking": "high" }
+  }
+}
