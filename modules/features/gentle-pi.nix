@@ -110,6 +110,12 @@ in {
     # it in the generation's closure — and the generation is GC-rooted by
     # home-manager.
 
+    # The gentle-profile script (linked below) hard-requires perl on PATH
+    # (`command -v perl >/dev/null 2>&1 || die "falta perl en el PATH"`).
+    # Debian ships perl in its base system, but pinning it here keeps gear5th
+    # deterministic and documents the dependency next to what needs it.
+    home.packages = [ pkgs.perl ];
+
     # The gentle-ai runtime writes this script on first use, so the link is
     # only created once it exists. Never fatal.
     home.activation.gentleProfileLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
