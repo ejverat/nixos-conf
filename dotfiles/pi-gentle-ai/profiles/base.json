@@ -1,0 +1,31 @@
+{
+  "name": "base",
+  "description": "Linea base: todo sobre creditos medidos de DeepSeek. No depende de ninguna cuota semanal, asi que la cadena SDD nunca se corta a mitad. Usar cuando opencode-go no tiene disponibilidad.",
+  "default_model": "deepseek/deepseek-flash",
+  "default_effort": "low",
+  "routing": {
+    "sdd-init": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "sdd-onboard": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "sdd-explore": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "sdd-research": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "sdd-proposal": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "sdd-spec": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-design": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-tasks": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-status": { "model": "deepseek/deepseek-flash", "thinking": "off" },
+    "sdd-apply": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-verify": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "sdd-sync": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "sdd-archive": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "jd-judge-a": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "jd-judge-b": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "jd-fix-agent": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "gentle-ai-explore": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "gentle-ai-verify": { "model": "deepseek/deepseek-flash", "thinking": "low" },
+    "gentle-ai-worker": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "review-risk": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "review-reliability": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "review-resilience": { "model": "deepseek/deepseek-flash", "thinking": "high" },
+    "review-readability": { "model": "deepseek/deepseek-flash", "thinking": "low" }
+  }
+}

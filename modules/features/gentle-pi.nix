@@ -1,4 +1,8 @@
 { self, inputs, ... }: let
+  # Shared with the home-manager variant below (see the file for why it lives
+  # under modules/lib/_).
+  piSettings = import ../lib/_pi-settings.nix;
+
   # gentle-ai release pinned by gentle-pi v3.2.0 itself
   # (scripts/gentle-ai-installer.mjs, INSTALLER_VERSION). The binary is a
   # static Go executable, so the official signed release runs fine on NixOS
@@ -43,15 +47,21 @@ in {
       text = ''
         src="${homeDir}/.pi/gentle-ai/gentle-profile"
         dst="${homeDir}/.local/bin/gentle-profile"
+        vendored="${../../dotfiles/pi-gentle-ai/gentle-profile}"
 
-        if [ -x "$src" ]; then
-          mkdir -p "$(dirname "$dst")"
-          ln -sfn "$src" "$dst"
-          chown -h ${user}:users "$dst" 2>/dev/null || true
-          chown ${user}:users "$(dirname "$dst")" 2>/dev/null || true
+        if [ ! -f "$src" ]; then
+          mkdir -p "$(dirname "$src")"
+          install -m 0755 "$vendored" "$src"
+          chown ${user}:users "$src" 2>/dev/null || true
+          echo "gentle-profile: seeded $src from the vendored copy"
         else
-          echo "gentle-profile: $src does not exist yet; skipping link" >&2
+          chmod u+x "$src" 2>/dev/null || true
         fi
+
+        mkdir -p "$(dirname "$dst")"
+        ln -sfn "$src" "$dst"
+        chown -h ${user}:users "$dst" 2>/dev/null || true
+        chown ${user}:users "$(dirname "$dst")" 2>/dev/null || true
       '';
     };
 
@@ -81,24 +91,77 @@ in {
           chown ${user}:users "$settings"
         fi
 
-        tmp=$(${pkgs.coreutils}/bin/mktemp)
-        if ${pkgs.jq}/bin/jq --arg pkg "${package}" '
-          .packages = (
-            ((.packages // [])
-              | map(select(
-                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$"))
-                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$"))))
-                  | not)))
-            + [$pkg] | unique)
-        ' "$settings" > "$tmp"; then
-          # In-place write keeps the file owned by the user.
-          ${pkgs.coreutils}/bin/cat "$tmp" > "$settings"
-        else
-          echo "pi-gentle-pi: could not merge into $settings; leaving it unchanged" >&2
-        fi
-        ${pkgs.coreutils}/bin/rm -f "$tmp"
+        ${piSettings {
+          inherit pkgs package;
+          pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
+        }}
       '';
     };
+  };
+
+  # Portable user layer (non-NixOS hosts, e.g. gear5th/Debian). home-manager
+  # activations already run as the user, so there is no ownership juggling; the
+  # ~/.local/bin entry for `gentle-profile` lives in the portable zsh wrapper
+  # (see the zsh module), matching chopper's session variable.
+  flake.homeModules.gentle-pi = { config, pkgs, lib, flakeSelf, ... }: let
+    package = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.gentle-pi;
+    agentDir = "${config.home.homeDirectory}/.pi/agent";
+  in {
+    # NOTE: the package is deliberately NOT added to home.packages. Two reasons:
+    #   - pi loads it by the path written into settings.json, so it needs no PATH
+    #     entry;
+    #   - buildEnv rejects it alongside gentle-engram because both ship a
+    #     top-level README.md ("two given paths contain a conflicting subpath").
+    # The activation script below references the store path, which is what puts
+    # it in the generation's closure — and the generation is GC-rooted by
+    # home-manager.
+
+    # The gentle-profile script (linked below) hard-requires perl on PATH
+    # (`command -v perl >/dev/null 2>&1 || die "falta perl en el PATH"`).
+    # Debian ships perl in its base system, but pinning it here keeps gear5th
+    # deterministic and documents the dependency next to what needs it.
+    home.packages = [ pkgs.perl ];
+
+    # The gentle-ai runtime writes this script into its config home on first use,
+    # but the Nix package only ships the runtime binary and the pi extension, so a
+    # fresh host can end up without it (that is what happened on gear5th: the
+    # activation had nothing to link). Seed the vendored copy when it is missing —
+    # never overwrite, so a runtime-provided version always wins — make sure it is
+    # runnable, and link it so `gentle-profile` resolves by bare name.
+    # `pi --version` does NOT load extensions: only a real session materializes
+    # runtime files, which is why the seeding matters.
+    home.activation.gentleProfileLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      src="$HOME/.pi/gentle-ai/gentle-profile"
+      dst="$HOME/.local/bin/gentle-profile"
+      vendored="${../../dotfiles/pi-gentle-ai/gentle-profile}"
+
+      if [ ! -f "$src" ]; then
+        mkdir -p "$(dirname "$src")"
+        install -m 0755 "$vendored" "$src"
+        echo "gentle-profile: seeded $src from the vendored copy"
+      else
+        chmod u+x "$src" 2>/dev/null || true
+      fi
+
+      mkdir -p "$HOME/.local/bin"
+      ln -sfn "$src" "$dst"
+    '';
+
+    # Same additive merge as the NixOS variant: pi rewrites this file at
+    # runtime, so it cannot be managed declaratively.
+    home.activation.piGentlePi = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      agentDir="${agentDir}"
+      settings="$agentDir/settings.json"
+      mkdir -p "$agentDir"
+      if [ ! -f "$settings" ]; then
+        echo '{}' > "$settings"
+      fi
+
+      ${piSettings {
+        inherit pkgs package;
+        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
+      }}
+    '';
   };
 
   perSystem = { pkgs, inputs', ... }: let
