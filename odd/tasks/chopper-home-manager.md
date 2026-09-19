@@ -6,6 +6,26 @@ Make `chopper` (NixOS) consume the same `flake.homeModules.*` as `gear5th`, so
 the user-level configuration has a single source of truth and the manual
 `~/.dotfiles` clone on chopper can be retired.
 
+## Phase 2 complete (validated on hardware)
+
+- **chopper**: `sudo nixos-rebuild switch` applied; `home-manager-ejverat.service`
+  active; `~/.dotfiles`, `~/.config/wezterm/wezterm.lua`, `~/.oh-my-zsh`,
+  `~/.zsh/zsh-autosuggestions`, `~/powerlevel10k` and the oh-my-zsh plugin file
+  are now `ejverat:users` symlinks managed by home-manager; `tmux`/`wezterm` come
+  from `/etc/profiles/per-user/ejverat` (0 in the system profile); `ZDOTDIR` and
+  `FZF_BASE` still come from the system environment; a fresh shell loads the
+  highlighter (`ZSH_HIGHLIGHT_VERSION=0.8.0`) with no `source` errors.
+- **gear5th**: `home-manager switch` applied cleanly (its paths were already
+  user-owned); the same shared modules drive it.
+- **Incidents resolved during the migration**:
+  1. root-owned leftovers from the removed zsh activationScripts blocked the
+     first slice-4 switch on chopper (migration note below);
+  2. the shared module baked a wrong subpath for `zsh-syntax-highlighting`
+     (`share/zsh/zsh-syntax-highlighting/…` instead of
+     `share/zsh-syntax-highlighting/…`), a silent failure at shell start, fixed
+     in `76a4e37`. `scripts/diag-gear5th.sh` now verifies every baked store path
+     in `~/.oh-my-zsh-custom/plugins/*/*.plugin.zsh`.
+
 ## Decision: how home-manager runs on chopper
 
 Use the **home-manager NixOS module** (`inputs.home-manager.nixosModules.home-manager`
