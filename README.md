@@ -20,6 +20,10 @@ layer. Portable dotfiles are vendored in `dotfiles/` and materialized at
 sudo nixos-rebuild switch --flake .#chopper
 ```
 
+chopper's user-level configuration runs through the home-manager NixOS module
+(same `flake.homeModules.*` as gear5th), so one command activates both. Phase 2
+tracker: `odd/tasks/chopper-home-manager.md`.
+
 ## Bootstrap gear5th (Debian)
 
 The quick path runs the one-shot script (interactive by default):
