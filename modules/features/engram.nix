@@ -1,4 +1,8 @@
-{ self, inputs, ... }: {
+{ self, inputs, ... }: let
+  # Shared with the home-manager variant below (see the file for why it lives
+  # under modules/lib/_).
+  piSettings = import ../lib/_pi-settings.nix;
+in {
   flake.nixosModules.engram = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
     gentleEngram = self.packages.${system}.gentle-engram;
@@ -33,24 +37,40 @@
           chown ${user}:users "$settings"
         fi
 
-        tmp=$(${pkgs.coreutils}/bin/mktemp)
-        if ${pkgs.jq}/bin/jq --arg pkg "${gentleEngram}" '
-          .packages = (
-            ((.packages // [])
-              | map(select(
-                  ((type == "string" and test("^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$"))
-                   or (type == "object" and ((.source? // "") | test("^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$"))))
-                  | not)))
-            + [$pkg] | unique)
-        ' "$settings" > "$tmp"; then
-          # In-place write keeps the file owned by the user.
-          ${pkgs.coreutils}/bin/cat "$tmp" > "$settings"
-        else
-          echo "pi-engram: could not merge into $settings; leaving it unchanged" >&2
-        fi
-        ${pkgs.coreutils}/bin/rm -f "$tmp"
+        ${piSettings {
+          inherit pkgs;
+          package = gentleEngram;
+          pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$";
+        }}
       '';
     };
+  };
+
+  # Portable user layer (non-NixOS hosts, e.g. gear5th/Debian): the server on
+  # PATH (the extension lazily spawns `engram serve`) plus the same additive
+  # registration of the pi extension.
+  flake.homeModules.engram = { config, pkgs, lib, flakeSelf, ... }: let
+    system = pkgs.stdenv.hostPlatform.system;
+    engram = flakeSelf.packages.${system}.engram;
+    gentleEngram = flakeSelf.packages.${system}.gentle-engram;
+    agentDir = "${config.home.homeDirectory}/.pi/agent";
+  in {
+    home.packages = [ engram gentleEngram ];
+
+    home.activation.piEngram = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      agentDir="${agentDir}"
+      settings="$agentDir/settings.json"
+      mkdir -p "$agentDir"
+      if [ ! -f "$settings" ]; then
+        echo '{}' > "$settings"
+      fi
+
+      ${piSettings {
+        inherit pkgs;
+        package = gentleEngram;
+        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$";
+      }}
+    '';
   };
 
   perSystem = { pkgs, inputs', ... }: {

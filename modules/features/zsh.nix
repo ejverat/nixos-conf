@@ -115,7 +115,7 @@
     packages.myZshPortable = inputs.wrapper-modules.wrappers.zsh.wrap (zshCommon // {
       zdotFilesDirname = "zsh-dot-dir-portable";
       zshenv.content = ''
-        export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+        export PATH="$HOME/.local/bin:$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
         # Minimal PAM service for the noctalia lock screen (created by
         # scripts/fix-pam-unix-chkpwd.sh); the default 'login' stack also works
         # once the setuid unix_chkpwd helper exists.

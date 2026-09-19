@@ -58,6 +58,11 @@ in {
       self.homeModules.niri
       self.homeModules.noctalia
       self.homeModules.pi
+      # Nix-built pi ecosystem: gentle-pi (harness) and engram (memory). The
+      # activations merge the store paths into ~/.pi/agent/settings.json, which
+      # pi owns at runtime, exactly like chopper's system activations do.
+      self.homeModules.gentle-pi
+      self.homeModules.engram
       hostModule
     ];
   };
