@@ -203,3 +203,6 @@ Implementation notes worth keeping:
   reproducible from nixpkgs. `pkgs.nordic` does exist and provides
   `Nordic-bluish-accent-standard-buttons` (no `-v40` suffix) if that look is
   preferred later.
+- Work-unit commit:
+  `f31d2cba129791bfb3d6c675969d8e7df21e7b05` on
+  `feat/orcaslicer-dark-theme` (branch cut from `main` at `5e1dec0`).
