@@ -101,9 +101,14 @@ in {
     package = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.gentle-pi;
     agentDir = "${config.home.homeDirectory}/.pi/agent";
   in {
-    # Keep the store path alive: pi loads this extension by path, and this
-    # profile entry is what protects it from the garbage collector.
-    home.packages = [ package ];
+    # NOTE: the package is deliberately NOT added to home.packages. Two reasons:
+    #   - pi loads it by the path written into settings.json, so it needs no PATH
+    #     entry;
+    #   - buildEnv rejects it alongside gentle-engram because both ship a
+    #     top-level README.md ("two given paths contain a conflicting subpath").
+    # The activation script below references the store path, which is what puts
+    # it in the generation's closure — and the generation is GC-rooted by
+    # home-manager.
 
     # The gentle-ai runtime writes this script on first use, so the link is
     # only created once it exists. Never fatal.
