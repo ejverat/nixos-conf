@@ -7,6 +7,12 @@ Dendritic Nix configuration for two machines:
 | `chopper` | NixOS | `nixosConfigurations.chopper` (`nixos-rebuild switch --flake .#chopper`) |
 | `gear5th` | Debian | `homeConfigurations.gear5th` (home-manager standalone) |
 
+**Reinstalling a machine?** Each host has a rebuild runbook with the exact order of
+commands and what to back up first:
+[docs/chopper.md](docs/chopper.md) · [docs/gear5th.md](docs/gear5th.md).
+For gear5th failures there is also the AI-agent troubleshooting catalog in
+[docs/gear5th-support.md](docs/gear5th-support.md).
+
 Shared *user-level* features live in `modules/features/*.nix` as
 `flake.homeModules.*`, used by both hosts. System-level features stay
 NixOS-only (`flake.nixosModules.*`) until chopper migrates to the shared
