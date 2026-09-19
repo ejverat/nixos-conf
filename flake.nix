@@ -31,6 +31,17 @@
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
 
+    # Pinned separately because the main nixpkgs pin still ships
+    # orca-slicer 2.3.2 while upstream is on 2.4.2, and the user's print
+    # profiles come from a 2.4.2 Flatpak install. Do not let this pin follow
+    # the main nixpkgs: following it would defeat the point of the extra pin.
+    # Cost: the package carries its own dependency closure (webkitgtk,
+    # wxwidgets, ...) isolated from the main pin. Acceptable because
+    # orca-slicer 2.4.2 is in the binary cache, so nothing is compiled.
+    nixpkgs-orca = {
+      url = "github:NixOS/nixpkgs/nixos-unstable";
+    };
+
     # Secret management. Age identity is the ed25519 SSH host key
     # (services.openssh.enable is on, and sops.age.sshKeyPaths defaults to it),
     # so there is no separate age key to generate or keep.

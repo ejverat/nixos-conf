@@ -67,6 +67,9 @@ in {
       # pi owns at runtime, exactly like chopper's system activations do.
       self.homeModules.gentle-pi
       self.homeModules.engram
+      # Native OrcaSlicer 2.4.2 from the dedicated nixpkgs-orca pin, replacing
+      # the Flatpak install that owned the print profiles.
+      self.homeModules.orcaslicer
       hostModule
     ];
   };
