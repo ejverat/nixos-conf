@@ -6,8 +6,9 @@
   #   - zsh:    myZsh zshrc sources $HOME/.dotfiles/home/.zshrc
   #   - tmux:   cht.sh shortcut spawns ~/.dotfiles/utilities/cht.sh
   # Keeping the same paths on non-NixOS hosts means the exact same wrapper
-  # packages run on both machines. Chopper still uses its manual ~/.dotfiles
-  # clone until it migrates to this module (phase 2).
+  # packages run on both machines. Both hosts consume this module: chopper
+  # through the home-manager NixOS module, gear5th through home-manager
+  # standalone.
   flake.homeModules.dotfiles = { ... }: {
     home.file = {
       ".dotfiles/config/nvim" = {
