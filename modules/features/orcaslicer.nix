@@ -3,14 +3,13 @@
   # still ships 2.3.2, and the user's print profiles come from a 2.4.2
   # Flatpak. Rationale and tradeoff: odd/tasks/orcaslicer-native.md.
   #
-  # `allowUnfree` mirrors the flake-level perSystem pkgs and gear5th's pkgs.
+  # `allowUnfree` comes from the shared manual-import helper (modules/lib/_pkgs.nix),
+  # the same policy the flake-level perSystem pkgs and gear5th's pkgs use.
   # orca-slicer itself is AGPL-3.0 (free); the flag is there so the closure
   # does not start failing if a dependency ever needs it.
   orcaBase = pkgs:
-    (import inputs.nixpkgs-orca {
-      inherit (pkgs.stdenv.hostPlatform) system;
-      config.allowUnfree = true;
-    }).orca-slicer;
+    ((import ../lib/_pkgs.nix) inputs.nixpkgs-orca pkgs.stdenv.hostPlatform.system)
+    .orca-slicer;
 
   # Force the GTK theme for this app only.
   #

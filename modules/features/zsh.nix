@@ -1,4 +1,7 @@
-{ self, inputs, ... }: {
+{ self, inputs, ... }: let
+  # Shared provider-keys paths. See modules/lib/_paths.nix.
+  paths = import ../lib/_paths.nix;
+in {
   flake.nixosModules.zsh = { config, pkgs, lib, ... }: let
     myZsh = self.packages.${pkgs.stdenv.hostPlatform.system}.myZsh;
   in {
@@ -86,12 +89,11 @@
       zdotFilesDirname = "zsh-dot-dir";
       # Provider API keys come from modules/features/secrets.nix, which renders the
       # sops secrets into this file at activation time. It is sourced from zshenv
-      # (not zshrc) so that non-interactive shells get the keys too. This path is
-      # hardcoded in exactly two places on purpose; if you move it, also update
-      # sops.templates in secrets.nix.
+      # (not zshrc) so that non-interactive shells get the keys too. The path is
+      # the shared constant in modules/lib/_paths.nix.
       zshenv.content = ''
-        if [ -r /run/secrets/rendered/pi-provider-keys.env ]; then
-          . /run/secrets/rendered/pi-provider-keys.env
+        if [ -r ${paths.providerKeysEnvNixos} ]; then
+          . ${paths.providerKeysEnvNixos}
         fi
       '';
     });
@@ -127,8 +129,8 @@
         # identity derived from ~/.ssh/id_ed25519 — the standalone analogue of
         # chopper's /run/secrets/rendered/pi-provider-keys.env. Sourced from
         # zshenv (not zshrc) so non-interactive shells get the keys too.
-        if [ -r "$HOME/.config/pi-provider-keys.env" ]; then
-          . "$HOME/.config/pi-provider-keys.env"
+        if [ -r "$HOME/${paths.providerKeysEnvPortable}" ]; then
+          . "$HOME/${paths.providerKeysEnvPortable}"
         fi
         # Minimal PAM service for the noctalia lock screen (created by
         # scripts/fix-pam-unix-chkpwd.sh); the default 'login' stack also works

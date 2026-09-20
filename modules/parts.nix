@@ -1,4 +1,7 @@
-{ inputs, ... }: {
+{ inputs, ... }: let
+  # Shared manual-import policy (allowUnfree). See modules/lib/_pkgs.nix.
+  mkPkgs = import ./lib/_pkgs.nix;
+in {
   # home-manager flake-parts integration: makes `flake.homeModules` (shared
   # user configuration used by standalone hosts like gear5th/Debian) and
   # `flake.homeConfigurations` mergeable, dendritic-style.
@@ -16,9 +19,6 @@
     # `allowUnfree` enabled, matching `nixpkgs.config.allowUnfree = true`
     # in the host configuration. Some wrappers depend on unfree tools
     # (e.g. `replace`, used by wrapperModules' symlinkScript).
-    _module.args.pkgs = import inputs.nixpkgs {
-      inherit system;
-      config.allowUnfree = true;
-    };
+    _module.args.pkgs = mkPkgs inputs.nixpkgs system;
   };
 }
