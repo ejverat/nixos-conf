@@ -6,7 +6,7 @@ in {
   flake.nixosModules.engram = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
     gentleEngram = self.packages.${system}.gentle-engram;
-    user = "ejverat";
+    user = config.nixosConf.user.name;
     homeDir = config.users.users.${user}.home;
   in {
     # Engram server on PATH: the gentle-engram extension lazily spawns

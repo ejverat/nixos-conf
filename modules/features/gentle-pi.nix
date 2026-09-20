@@ -15,7 +15,7 @@ in {
   flake.nixosModules.gentle-pi = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
     package = self.packages.${system}.gentle-pi;
-    user = "ejverat";
+    user = config.nixosConf.user.name;
     homeDir = config.users.users.${user}.home;
   in {
     # Make ~/.local/bin reachable so `gentle-profile` resolves by bare name.
