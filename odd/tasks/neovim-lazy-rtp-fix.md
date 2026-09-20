@@ -83,6 +83,10 @@ a real maintenance burden.
 - [x] T5 Commit the work unit (repo edit + feature doc) once T2 verifies.
       Ordering decided by the user 2026-09-19: commit only after runtime
       verification; the agent does not commit unprompted.
+      Delivered: issue #21 (`type:bug` + `status:approved`), commit `2a8ab3d`
+      pushed to `origin/fix/nvim-lazy-rtp-path`, PR #22 open against `main`
+      (MERGEABLE, label `type:bug`, body links `Closes #21`; the repo has no CI
+      workflows, so no checks run). Merge remains the user's decision.
 
 ## Lockfile reconciliation (76 in git vs 75 at runtime)
 
