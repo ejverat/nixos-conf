@@ -44,6 +44,13 @@ require("lazy").setup({
     -- packpath to $VIMRUNTIME by default, which breaks those parsers.
     reset_packpath = false,
     rtp = {
+      -- Keep the wrapper-provided runtimepath. The nix wrapper (wrapper-modules)
+      -- loads this config from $HOME/.dotfiles/config/nvim by prepending it to
+      -- the rtp, while stdpath("config") stays $HOME/.config/nvim. lazy.nvim's
+      -- default rtp.reset = true rebuilds the rtp from stdpath("config"), which
+      -- drops the config dir, so `import = "plugins"` resolves nothing and
+      -- lazy reports 'No specs found for module "plugins"'.
+      reset = false,
       -- disable some rtp plugins
       disabled_plugins = {
         "gzip",
