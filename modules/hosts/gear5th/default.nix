@@ -7,11 +7,8 @@
   # user configuration from this flake's shared home modules. System-level
   # concerns (kernel, drivers, services, boot) stay with Debian.
   system = "x86_64-linux";
-  pkgs = import inputs.nixpkgs {
-    inherit system;
-    # Same policy as the flake-level perSystem pkgs (modules/parts.nix).
-    config.allowUnfree = true;
-  };
+  # Shared manual-import policy (allowUnfree). See modules/lib/_pkgs.nix.
+  pkgs = (import ../../lib/_pkgs.nix) inputs.nixpkgs system;
 
   # Host identity and minimal base. Kept inline (not a separate .nix file):
   # import-tree turns every .nix under modules/ into a flake-parts module, and
