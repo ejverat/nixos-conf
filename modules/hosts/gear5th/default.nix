@@ -51,6 +51,7 @@ in {
 
     modules = [
       self.homeModules.dotfiles
+      self.homeModules.gh
       self.homeModules.neovim
       self.homeModules.wezterm
       self.homeModules.tmux
