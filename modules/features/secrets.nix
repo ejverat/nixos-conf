@@ -12,7 +12,10 @@
   self,
   inputs,
   ...
-}: {
+}: let
+  # Shared provider-keys paths. See modules/lib/_paths.nix.
+  paths = import ../lib/_paths.nix;
+in {
   flake.nixosModules.secrets = {
     config,
     pkgs,
@@ -20,8 +23,8 @@
     ...
   }: let
     # Path of the rendered env file. modules/features/zsh.nix sources this exact
-    # path from the wrapper's zshenv. Keep the two in sync.
-    renderedEnv = "/run/secrets/rendered/pi-provider-keys.env";
+    # path from the wrapper's zshenv; both come from modules/lib/_paths.nix.
+    renderedEnv = paths.providerKeysEnvNixos;
 
     # Editing the encrypted file needs the age identity, which is the SSH host
     # key and is therefore root-only. This wrapper converts it in memory into a
@@ -175,7 +178,7 @@
     sops.secrets.deepseek_api_key = {};
 
     sops.templates."pi-provider-keys.env" = {
-      path = "${config.home.homeDirectory}/.config/pi-provider-keys.env";
+      path = "${config.home.homeDirectory}/${paths.providerKeysEnvPortable}";
       content = ''
         export OPENCODE_API_KEY="${config.sops.placeholder.opencode_api_key}"
         export DEEPSEEK_API_KEY="${config.sops.placeholder.deepseek_api_key}"
