@@ -63,6 +63,7 @@
         imports = [
           # Phase 2, slice 2 (user-level packages and the vendored dotfiles).
           self.homeModules.dotfiles
+          self.homeModules.gh
           self.homeModules.wezterm
           self.homeModules.tmux
           # Phase 2, slice 4: shared plugin/rc wiring; chopper installs its own
