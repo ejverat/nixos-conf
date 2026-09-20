@@ -110,10 +110,10 @@ New `modules/checks.nix` (flake-parts module, no host-specific code):
 { self, ... }: {
   perSystem = { pkgs, ... }: {
     checks.chopper-eval = pkgs.runCommand "check-chopper-eval" {} ''
-      echo "${self.nixosConfigurations.chopper.config.system.build.toplevel.drvPath}" > $out
+      echo "${builtins.unsafeDiscardStringContext self.nixosConfigurations.chopper.config.system.build.toplevel.drvPath}" > $out
     '';
     checks.gear5th-eval = pkgs.runCommand "check-gear5th-eval" {} ''
-      echo "${self.homeConfigurations.gear5th.activationPackage.drvPath}" > $out
+      echo "${builtins.unsafeDiscardStringContext self.homeConfigurations.gear5th.activationPackage.drvPath}" > $out
     '';
   };
 }
@@ -123,6 +123,12 @@ The `runCommand` interpolates only the drv path, so the check **forces deep
 evaluation** of each host without building the system. `nix flake check` then
 guarantees both hosts still evaluate, closing the class of failure already hit
 once (a shared home module that breaks the other host's eval).
+
+`unsafeDiscardStringContext` is mandatory: a bare `${drvPath}` carries string
+context, which makes the check depend on the whole system and turns
+`nix flake check` into a full system build (observed: it started fetching
+`maturin`). Discarding the context keeps the eval but drops the build
+dependency.
 
 Risk to verify: flake-parts self-reference recursion when `self.<output>` is
 read from inside `perSystem`. If it recurses, the fallback is a top-level
@@ -147,20 +153,54 @@ configs through `config.flake`. Confirm with `nix flake check --no-build`.
 
 - **Slice 2 attribute interpolation**: `users.users.${name}` and
   `home-manager.users.${name}` must agree. Eval catches any mismatch.
-- **Slice 3 recursion**: the only real uncertainty; verification step 1 settles
-  it, with the documented fallback.
+- **Slice 3 recursion**: resolved — reading `self.nixosConfigurations` /
+  `self.homeConfigurations` from inside `perSystem` does not recurse with
+  flake-parts (rev 3107b77); both checks evaluated on the first try.
+- **Slice 3 string context**: `${drvPath}` carries string context and would make
+  the check depend on the whole system. Fixed with
+  `builtins.unsafeDiscardStringContext`.
+- **New files under `modules/` are invisible until `git add`** (documented
+  gotcha, hit again on `modules/options.nix`): `self.nixosModules.nixosConf`
+  reported `attribute 'nixosConf' missing` until staged.
 - **Commit/PR shape**: one feature branch, one work-unit commit per slice. The
   batch is well under the 400-line review threshold; split into chained PRs only
   if the reviewer prefers.
 
+## Verification evidence
+
+- Slice 1: `grep` for `until chopper migrates`, `secrets.zsh`, `planned
+  follow-up`, `Phase 2 tracker` in `README.md` and `dotfiles.nix` → no hits.
+- Slice 2: `nix eval --raw .#nixosConfigurations.chopper.config.system.build.toplevel.drvPath`
+  → `fg94h97599ix7g6wfngl36z7vgghjaw7-nixos-system-chopper-26.11.20260902.3ed67ec.drv`
+  (identical to baseline). `.#homeConfigurations.gear5th.activationPackage.drvPath`
+  → `8rzhqsgj6sh4zapi1gpchgv6jr1s2yb0-home-manager-generation.drv` (identical).
+- Slice 3: `nix flake check --no-build --keep-going` → `all checks passed!` and
+  lists `checks.x86_64-linux.chopper-eval` / `checks.x86_64-linux.gear5th-eval`.
+  `nix build .#checks.x86_64-linux.{chopper,gear5th}-eval` builds trivially
+  (only stdenv bootstrap) and their outputs are the baseline drv paths.
+- Whole feature: `nix build --no-link
+  .#nixosConfigurations.chopper.config.system.build.toplevel
+  .#homeConfigurations.gear5th.activationPackage` → exit 0 (chopper cached,
+  gear5th re-linked from cached deps).
+
+## Lessons
+
+- `self.<output>` inside `perSystem` works in flake-parts; no recursion for a
+  check that reads `nixosConfigurations` / `homeConfigurations`.
+- A drv path interpolated into a derivation carries string context: discard it
+  with `builtins.unsafeDiscardStringContext` or the check drags the whole
+  closure into the build.
+- New `modules/*.nix` files must be `git add`-ed before any `nix` command, or
+  the flake cannot see them.
+
 ## Commit identities
 
-- [ ] Slice 1 — `docs: align README and dotfiles comment with the shared layer`
-- [ ] Slice 2 — `refactor(hosts): declare the desktop user once as nixosConf.user.name`
-- [ ] Slice 3 — `ci(flake): add eval checks for chopper and gear5th`
+- [x] Slice 1 — `docs: align README and dotfiles comment with the shared layer` (75bbd20)
+- [x] Slice 2 — `refactor(hosts): declare the desktop user once as nixosConf.user.name` (730823f)
+- [x] Slice 3 — `ci(flake): add eval checks for chopper and gear5th`
 
 ## Status
 
-- [ ] Slice 1 — docs drift
-- [ ] Slice 2 — host identity option
-- [ ] Slice 3 — flake eval checks
+- [x] Slice 1 — docs drift
+- [x] Slice 2 — host identity option
+- [x] Slice 3 — flake eval checks
