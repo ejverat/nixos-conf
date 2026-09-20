@@ -1,7 +1,7 @@
 { self, inputs, ... }: let
-  # Shared with the home-manager variant below (see the file for why it lives
-  # under modules/lib/_).
-  piSettings = import ../lib/_pi-settings.nix;
+  # Shared shell body for the NixOS/home-manager activation pair. See
+  # modules/lib/_pi-activation.nix.
+  piActivation = import ../lib/_pi-activation.nix;
 in {
   flake.nixosModules.engram = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
@@ -23,26 +23,12 @@ in {
     # versions are never removed and pi fails with duplicate tool conflicts.
     system.activationScripts.piEngram = {
       deps = [ "users" "groups" ];
-      text = ''
-        agentDir="${homeDir}/.pi/agent"
-        settings="$agentDir/settings.json"
-
-        if [ ! -d "$agentDir" ]; then
-          mkdir -p "$agentDir"
-          chown -R ${user}:users "${homeDir}/.pi"
-        fi
-
-        if [ ! -f "$settings" ]; then
-          echo '{}' > "$settings"
-          chown ${user}:users "$settings"
-        fi
-
-        ${piSettings {
-          inherit pkgs;
-          package = gentleEngram;
-          pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$";
-        }}
-      '';
+      text = piActivation {
+        inherit lib pkgs homeDir;
+        package = gentleEngram;
+        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$";
+        owner = "${user}:users";
+      };
     };
   };
 
@@ -53,27 +39,18 @@ in {
     system = pkgs.stdenv.hostPlatform.system;
     engram = flakeSelf.packages.${system}.engram;
     gentleEngram = flakeSelf.packages.${system}.gentle-engram;
-    agentDir = "${config.home.homeDirectory}/.pi/agent";
   in {
     # Only the server CLI goes on PATH: the gentle-engram extension is loaded by
     # the path written into settings.json (see the note in gentle-pi.nix about
     # why both extensions cannot sit in home.packages at once).
     home.packages = [ engram ];
 
-    home.activation.piEngram = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      agentDir="${agentDir}"
-      settings="$agentDir/settings.json"
-      mkdir -p "$agentDir"
-      if [ ! -f "$settings" ]; then
-        echo '{}' > "$settings"
-      fi
-
-      ${piSettings {
-        inherit pkgs;
-        package = gentleEngram;
-        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$";
-      }}
-    '';
+    home.activation.piEngram = lib.hm.dag.entryAfter [ "writeBoundary" ] (piActivation {
+      inherit lib pkgs;
+      homeDir = config.home.homeDirectory;
+      package = gentleEngram;
+      pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-engram(-[0-9][^/]*)?$";
+    });
   };
 
   perSystem = { pkgs, inputs', ... }: {
