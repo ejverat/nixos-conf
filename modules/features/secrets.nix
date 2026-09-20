@@ -111,7 +111,7 @@
         export OPENCODE_API_KEY="${config.sops.placeholder.opencode_api_key}"
         export DEEPSEEK_API_KEY="${config.sops.placeholder.deepseek_api_key}"
       '';
-      owner = "ejverat";
+      owner = config.nixosConf.user.name;
       group = "users";
       mode = "0400";
     };

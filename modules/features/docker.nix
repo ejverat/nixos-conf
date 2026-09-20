@@ -8,6 +8,6 @@
       };
     };
 
-    users.users.ejverat.extraGroups = [ "docker" ];
+    users.users.${config.nixosConf.user.name}.extraGroups = [ "docker" ];
   };
 }

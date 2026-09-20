@@ -11,6 +11,8 @@
   }: {
     imports = [
       self.nixosModules.chopperHardware
+      # Cross-cutting host options (nixosConf.user.name) read by the features.
+      self.nixosModules.nixosConf
       self.nixosModules.niri
       self.nixosModules.opencode
       self.nixosModules.zsh
@@ -39,6 +41,11 @@
       inputs.home-manager.nixosModules.home-manager
     ];
 
+    # Single source for the desktop user: the feature modules derive the home
+    # directory and file ownership from this, and the account below is keyed by
+    # it. See modules/options.nix.
+    nixosConf.user.name = "ejverat";
+
     home-manager = {
       useGlobalPkgs = true;
       useUserPackages = true;
@@ -52,7 +59,7 @@
         flakeSelf = self;
         flakeInputs = inputs;
       };
-      users.ejverat = {
+      users.${config.nixosConf.user.name} = {
         imports = [
           # Phase 2, slice 2 (user-level packages and the vendored dotfiles).
           self.homeModules.dotfiles
@@ -108,7 +115,7 @@
     services.libinput.enable = true;
 
     # Define a user account. Don't forget to set a password with ‘passwd’.
-    users.users.ejverat = {
+    users.users.${config.nixosConf.user.name} = {
       isNormalUser = true;
       extraGroups = ["sudo" "wheel"]; # Enable ‘sudo’ for the user.
       packages = with pkgs; [

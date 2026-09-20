@@ -9,7 +9,7 @@
     # gear5th uses), which replaced the bespoke activationScripts this module
     # used to carry. What stays system-side is the login shell and the
     # environment the wrapper needs.
-    users.users.ejverat.shell = myZsh;
+    users.users.${config.nixosConf.user.name}.shell = myZsh;
     environment.sessionVariables = {
       # The wrapper does NOT set ZDOTDIR itself (verified: with the variable
       # unset it comes up empty and zsh reads the wrong dot dirs), so this has

@@ -14,9 +14,10 @@ For gear5th failures there is also the AI-agent troubleshooting catalog in
 [docs/gear5th-support.md](docs/gear5th-support.md).
 
 Shared *user-level* features live in `modules/features/*.nix` as
-`flake.homeModules.*`, used by both hosts. System-level features stay
-NixOS-only (`flake.nixosModules.*`) until chopper migrates to the shared
-layer. Portable dotfiles are vendored in `dotfiles/` and materialized at
+`flake.homeModules.*`, consumed by both hosts (chopper through the home-manager
+NixOS module, gear5th through home-manager standalone). System-level features
+stay NixOS-only (`flake.nixosModules.*`). Portable dotfiles are vendored in
+`dotfiles/` and materialized at
 `~/.dotfiles` by the `dotfiles` home module, so the wrapper packages
 (`wrapper-modules`) reference the same paths on both machines.
 
@@ -27,8 +28,8 @@ sudo nixos-rebuild switch --flake .#chopper
 ```
 
 chopper's user-level configuration runs through the home-manager NixOS module
-(same `flake.homeModules.*` as gear5th), so one command activates both. Phase 2
-tracker: `odd/tasks/chopper-home-manager.md`.
+(same `flake.homeModules.*` as gear5th), so one command activates both.
+Migration record: `odd/tasks/chopper-home-manager.md`.
 
 ## Bootstrap gear5th (Debian)
 
@@ -139,9 +140,10 @@ Hit Ctrl+Alt+F1 (or reboot) and log in — niri takes over tty1.
 - niri session + GPU: drivers stay with Debian; niri brings its own nixpkgs
   mesa. If something misbehaves (`wayland-info`, missing GPU accel), start
   here before touching anything else.
-- Provider keys for pi: drop them in `~/.config/zsh/secrets.zsh` (sourced by
-  the dotfiles .zshrc when present). sops-nix home-manager integration is a
-  planned follow-up; chopper renders the same secrets from root sops to
+- Provider keys for pi: sops-nix in user mode decrypts `secrets/secrets.yaml`
+  with the age identity derived from `~/.ssh/id_ed25519` and renders
+  `~/.config/pi-provider-keys.env` (0400), sourced from `zshenv` by the portable
+  wrapper. chopper renders the same secrets from root sops to
   `/run/secrets/rendered/pi-provider-keys.env`.
 
 ## Portability notes
@@ -157,13 +159,7 @@ Hit Ctrl+Alt+F1 (or reboot) and log in — niri takes over tty1.
 
 ## Roadmap
 
-1. **Migrate chopper to the shared layer** (phase 2): the stashed "HomeManager
-   attempt" (`stash@{0}`) already sketches it, but re-do it on top of the
-   existing `flake.homeModules.*` instead of applying the old draft, then retire
-   the manual `~/.dotfiles` clone on chopper.
-2. **sops-nix for home-manager on gear5th** (age key based) so pi's provider
-   keys stop living in `~/.config/zsh/secrets.zsh`.
-3. **More apps through the same mechanism**, in batches, when needed on both
+1. **More apps through the same mechanism**, in batches, when needed on both
    machines. Inventory taken from the archived `debian-migration` draft
    (`archive/debian-migration-draft` tag):
    - desktop: kanshi (HDMI-A-1 + eDP-1 profiles are in the archived tag),
@@ -172,5 +168,5 @@ Hit Ctrl+Alt+F1 (or reboot) and log in — niri takes over tty1.
    - media: gimp, feh, nomacs, imagemagick
    - browsers/comms: firefox, chromium, google-chrome, slack
    - CLI/dev: bat, fd, direnv, tree, pciutils, upower, docker-client, ollama
-4. **System layer stays with Debian**: `scripts/debian-system-services.sh`
+2. **System layer stays with Debian**: `scripts/debian-system-services.sh`
    installs/enables it (apt + systemd), with `--check` for a read-only report.
