@@ -67,9 +67,18 @@ Row budget per output (kanshi sets both to scale 1.0):
 | `HDMI-A-1` 1920x1080 | 1080 | 47 |
 
 The config had 46 rows (19 + 27 titles), which fits the external monitor and
-loses 13 rows on the laptop panel. Nulling the 10 `XF86*` media and brightness
-titles brings it to 36 rows (834 px), still 3 rows over on `eDP-1`; those keys
-are printed on the keyboard, so they cost nothing to hide.
+loses 13 rows on the laptop panel. Two rounds of `hotkey-overlay-title=null`
+land it on the 33-row budget:
+
+1. The 10 `XF86*` media and brightness keys, which are printed on the keyboard.
+2. The bluetooth, network and calendar panels, which the control center on
+   `Mod+A` already exposes.
+
+The final overlay is 19 hardcoded rows + 14 titles = 33 rows = 768 px, which
+fills the laptop panel exactly and leaves room to spare on the external one.
+The margin is zero on `eDP-1`, so a host whose `sans` resolves to a taller font
+would cut the last row again; the next row to sacrifice is `Mod+Shift+M` (media
+player panel).
 
 ## Tasks
 
@@ -105,6 +114,9 @@ are printed on the keyboard, so they cost nothing to hide.
 - [x] Hotkey overlay: 27 spawn binds and 27 `hotkey-overlay-title` properties in
   the generated config, so no bind can show a store path.
 - [x] `niri validate` prints `config is valid` after the overlay change.
+- [x] Overlay row budget verified against the niri source constants: 19
+  hardcoded + 14 titles = 33 rows = 768 px, matching the `eDP-1` logical height;
+  13 binds carry `hotkey-overlay-title=null` (10 `XF86*` + 3 panels).
 
 Not verified on the running session: the live compositor still runs the config
 from the previously activated profile. The binds take effect on the next
@@ -119,3 +131,4 @@ from the previously activated profile. The binds take effect on the next
 - [x] `feat(niri): wire media and brightness keys` (4e736d7)
 - [x] `feat(niri): title every spawn bind in the hotkey overlay`
 - [x] `feat(niri): drop the media keys from the hotkey overlay`
+- [x] `feat(niri): fit the hotkey overlay on the laptop panel`

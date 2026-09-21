@@ -54,7 +54,9 @@
 		noctaliaIpc = call: "${noctaliaCmd} ipc call ${call}";
 		# niri's hotkey overlay prints the raw command of a spawn bind, and every
 		# command here is an absolute store path. spawnSh attaches the title the
-		# overlay should show instead of the path.
+		# overlay should show instead of the path; a null title keeps the bind out
+		# of the overlay, which is a content-sized dialog with no scroll and no
+		# room for every bind on the 768px laptop panel.
 		spawnSh = title: cmd: (_: {
 			props.hotkey-overlay-title = title;
 			content."spawn-sh" = cmd;
@@ -141,9 +143,12 @@
           "Mod+Shift+D" = spawnSh "Toggle dark mode" (noctaliaIpc "darkMode toggle");
           "Mod+Shift+T" = spawnSh "Toggle the idle inhibitor" (noctaliaIpc "idleInhibitor toggle");
           "Mod+Shift+M" = spawnSh "Media player panel" (noctaliaIpc "media toggle");
-          "Mod+Alt+B" = spawnSh "Bluetooth panel" (noctaliaIpc "bluetooth togglePanel");
-          "Mod+Alt+N" = spawnSh "Network panel" (noctaliaIpc "network togglePanel");
-          "Mod+Alt+C" = spawnSh "Calendar" (noctaliaIpc "calendar toggle");
+          # These three panels stay out of the hotkey overlay (null title): the
+          # control center on Mod+A already exposes bluetooth, network and the
+          # calendar, and the overlay has no room for them on the 768px panel.
+          "Mod+Alt+B" = spawnSh null (noctaliaIpc "bluetooth togglePanel");
+          "Mod+Alt+N" = spawnSh null (noctaliaIpc "network togglePanel");
+          "Mod+Alt+C" = spawnSh null (noctaliaIpc "calendar toggle");
 
           # Session: lock, log out, monitors and the shortcut inhibitor.
           "Super+Alt+L" = spawnSh "Lock the screen" (noctaliaIpc "lockScreen lock");
