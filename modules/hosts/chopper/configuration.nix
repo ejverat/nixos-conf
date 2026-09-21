@@ -18,19 +18,15 @@
       self.nixosModules.zsh
       self.nixosModules.neovim
       self.nixosModules.docker
-      self.nixosModules.slack
       self.nixosModules.claude-code
       self.nixosModules.antigravity
-      self.nixosModules.google-chrome
       self.nixosModules.ollama
       self.nixosModules.gimp
       self.nixosModules.libreoffice
-      self.nixosModules.chromium
       self.nixosModules.deepseek-harness
       self.nixosModules.pi
       self.nixosModules.gentle-pi
       self.nixosModules.engram
-      self.nixosModules.teams
       self.nixosModules.secrets
 
       # home-manager as a NixOS module: chopper consumes the same shared
@@ -64,6 +60,10 @@
           self.homeModules.gh
           self.homeModules.hyprpicker
           self.homeModules.kanshi
+          self.homeModules.chromium
+          self.homeModules.google-chrome
+          self.homeModules.slack
+          self.homeModules.teams
           self.homeModules.wezterm
           self.homeModules.tmux
           # Phase 2, slice 4: shared plugin/rc wiring; chopper installs its own

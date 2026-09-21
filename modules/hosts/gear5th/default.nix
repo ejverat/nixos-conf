@@ -64,6 +64,10 @@ in {
       self.homeModules.gh
       self.homeModules.hyprpicker
       self.homeModules.kanshi
+      self.homeModules.chromium
+      self.homeModules.google-chrome
+      self.homeModules.slack
+      self.homeModules.teams
       self.homeModules.neovim
       self.homeModules.wezterm
       self.homeModules.tmux
