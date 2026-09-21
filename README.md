@@ -175,18 +175,28 @@ linked:
   `~/.config/OrcaSlicer/user/default/` **only when a file is missing**, so a
   preset edited in the GUI always wins over the vendored one. Register it in a
   host's module list.
-- `scripts/orca-presets.sh` covers the two directions the seed deliberately
-  does not:
+- `scripts/slicer-presets.sh` covers the two directions the seed deliberately
+  does not, for **both** OrcaSlicer and PrusaSlicer:
 
 ```sh
-./scripts/orca-presets.sh status      # read-only: what differs
-./scripts/orca-presets.sh push        # live -> repo (capture edits made in the GUI)
-./scripts/orca-presets.sh pull        # repo -> live (apply repo changes)
+./scripts/slicer-presets.sh orca  status   # read-only: what differs
+./scripts/slicer-presets.sh orca  push     # live -> repo (capture edits made in the GUI)
+./scripts/slicer-presets.sh orca  pull     # repo -> live (apply repo changes)
+
+./scripts/slicer-presets.sh prusa status
+./scripts/slicer-presets.sh prusa push
+./scripts/slicer-presets.sh prusa pull
 ```
 
-Both directions accept `--dry-run`. `pull` backs the live tree up to
-`OrcaSlicer/user_backup-presets.<timestamp>/` before overwriting anything, and
-never deletes files that exist only on the live side — that is `push`'s job.
+Every action accepts `--dry-run`. `pull` backs the live tree up to
+`~/.local/state/slicer-presets-backups/<tool>/<timestamp>/` before overwriting
+anything — deliberately outside the applications' own directories, so the apps
+never see it and, for PrusaSlicer whose presets sit at its config root, the copy
+cannot land inside itself. `pull` never deletes files that exist only on the live
+side either; that is `push`'s job.
+The script was called `orca-presets.sh` while it only handled OrcaSlicer, and the
+per-tool differences are now a single lookup, so a third tool is a two-line
+addition.
 
 Presets reference system preset names through their `inherits` chains, so every
 host sharing them should use the same `nixpkgs-orca` pin. The flake gives that

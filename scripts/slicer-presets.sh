@@ -1,50 +1,74 @@
 #!/usr/bin/env bash
 #
-# orca-presets.sh — keep the vendored OrcaSlicer user presets and the live
-# application data directory in sync.
+# slicer-presets.sh — keep vendored slicer presets and the live application
+# directories in sync.
 #
-# The activation in modules/lib/_orca-presets.nix only seeds a preset **when it
-# is missing**, so a copy edited in the GUI always wins. That is the right
-# default on a fresh host, but it means two things need an explicit tool:
+# The seeds in modules/lib/_preset-seed.nix only copy a preset **when it is
+# missing**, so a copy edited in the GUI always wins. That is the right default
+# on a fresh host, but it means two things need an explicit tool:
 #
 #   push   capture presets you edited in the GUI back into this repository
 #   pull   apply repository-side changes to a host that already has the files
 #
-# Only the three preset subtrees are ever touched (`machine`, `process`,
-# `filament`). The machine id, OrcaSlicer.conf, system/, printers/ and the
-# transient directories are out of scope by construction.
-#
 # Usage:
-#   ./scripts/orca-presets.sh status              # read-only report
-#   ./scripts/orca-presets.sh push [--dry-run]    # live -> repo
-#   ./scripts/orca-presets.sh pull [--dry-run]    # repo -> live (backs up first)
+#   ./scripts/slicer-presets.sh <tool> status              # read-only report
+#   ./scripts/slicer-presets.sh <tool> push [--dry-run]    # live -> repo
+#   ./scripts/slicer-presets.sh <tool> pull [--dry-run]    # repo -> live (backs up first)
+#
+#   <tool> is one of: orca, prusa
+#
+# Only the trees the per-tool table below names are ever touched. Everything else
+# in an application's data directory is out of scope by construction: identifiers
+# and window state, data the application regenerates, and caches.
+#
+# The preset *shape* deliberately does not appear in the logic: the vendored tree
+# is walked and mirrored, so OrcaSlicer's JSON presets with `.info` sidecars under
+# a nested subdirectory and PrusaSlicer's flat `.ini` files both work unchanged.
 #
 # Environment:
-#   REPO_DIR        repository root (default: the parent of this script)
-#   ORCA_DATA_DIR   OrcaSlicer data dir (default: $XDG_CONFIG_HOME/OrcaSlicer)
+#   REPO_DIR          repository root (default: the parent of this script)
+#   SLICER_DATA_DIR   override the application's config directory
+#                     (default: $XDG_CONFIG_HOME/<application>)
 
 set -euo pipefail
 
 DRY_RUN=0
+TOOL=""
 ACTION=""
 for arg in "$@"; do
     case "$arg" in
         status|push|pull) ACTION="$arg" ;;
+        orca|prusa) TOOL="$arg" ;;
         --dry-run) DRY_RUN=1 ;;
         -h|--help) awk 'NR>1 && /^set -euo/{exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "[x] unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
 
-if [ -z "$ACTION" ]; then
-    echo "[x] expected one of: status, push, pull (see --help)" >&2
-    exit 2
-fi
+[ -n "$TOOL" ] || { echo "[x] expected a tool: orca or prusa (see --help)" >&2; exit 2; }
+[ -n "$ACTION" ] || { echo "[x] expected one of: status, push, pull (see --help)" >&2; exit 2; }
+
+# Per-tool paths, the whole of what differs between applications.
+#   SRC_REL  vendored tree inside this repository
+#   APP      the application's directory under the config home
+#   SUB      the preset subtree inside it, empty when the presets sit at the root
+case "$TOOL" in
+    orca)
+        SRC_REL="dotfiles/orcaslicer/user-default"
+        APP="OrcaSlicer"
+        SUB="user/default"
+        ;;
+    prusa)
+        SRC_REL="dotfiles/prusaslicer/presets"
+        APP="PrusaSlicer"
+        SUB=""
+        ;;
+esac
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-SRC="$REPO_DIR/dotfiles/orcaslicer/user-default"
-DATA_DIR="${ORCA_DATA_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/OrcaSlicer}"
-DEST="$DATA_DIR/user/default"
+SRC="$REPO_DIR/$SRC_REL"
+DATA_DIR="${SLICER_DATA_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/$APP}"
+DEST="$DATA_DIR${SUB:+/$SUB}"
 
 ok() { printf '[+] %s\n' "$*"; }
 warn() { printf '[!] %s\n' "$*"; }
@@ -54,13 +78,13 @@ if [ ! -d "$SRC" ]; then
     exit 1
 fi
 
-# Relative file lists, NUL-delimited so the preset names (which all contain
-# spaces and '@') survive intact.
+# Relative file lists, NUL-delimited so preset names (which contain spaces and
+# '@') survive intact.
 repo_files() { find "$SRC" -type f -printf '%P\0'; }
 live_files() { [ -d "$DEST" ] && find "$DEST" -type f -printf '%P\0' || true; }
 
-# Does the live preset tree contain anything at all? Guards pull/push against
-# running against an empty or missing data directory.
+# Does the live tree contain anything at all? Guards push/pull against running
+# against an empty or missing directory.
 have_live() { [ -d "$DEST" ] && [ -n "$(find "$DEST" -type f -print -quit 2>/dev/null)" ]; }
 
 case "$ACTION" in
@@ -85,6 +109,10 @@ status)
         fi
     done < <(live_files)
 
+    echo
+    ok "tool: $TOOL"
+    ok "repo: $SRC"
+    ok "live: $DEST"
     echo
     ok "up to date: $same"
     [ "$differs" -gt 0 ] && warn "differ: $differs (push to capture, pull to apply)"
@@ -117,7 +145,7 @@ push)
         warn "$copied file(s) would be captured into $SRC"
     else
         ok "captured $copied file(s) into $SRC"
-        echo "    review with: git -C $REPO_DIR diff -- dotfiles/orcaslicer"
+        echo "    review with: git -C $REPO_DIR diff -- $SRC_REL"
     fi
     exit 0
     ;;
@@ -146,10 +174,16 @@ pull)
         exit 0
     fi
 
-    # Back up the whole live preset tree once, outside user/, before touching it.
-    # The name follows the application's own user_backup-* convention.
+    # Back up the whole live tree once before touching anything.
+    #
+    # The backup lives under the state directory, **not** inside the application's
+    # config directory, and that placement is load-bearing: PrusaSlicer keeps its
+    # presets at the root of its config directory, so `DEST` and `DATA_DIR` are the
+    # same path there and an in-place backup would be copied into itself. Keeping
+    # it outside both applications' directories removes that hazard for every tool
+    # rather than special-casing one, and the applications never see it either.
     if have_live; then
-        backup="$DATA_DIR/user_backup-presets.$(date +%Y%m%d%H%M%S)"
+        backup="${XDG_STATE_HOME:-$HOME/.local/state}/slicer-presets-backups/$TOOL/$(date +%Y%m%d%H%M%S)"
         mkdir -p "$backup"
         cp -a "$DEST/." "$backup/"
         ok "backed up the live presets to $backup"

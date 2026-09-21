@@ -259,3 +259,8 @@ it if `GDK_GL=disable` makes the artifact disappear.
   if the artifact becomes disruptive.
 - The seed covers presets only; a future change could extend it to the printer
   configs if they ever become user-authored.
+- The sync script was later generalised: `scripts/orca-presets.sh` became
+  `scripts/slicer-presets.sh <tool> <action>` when PrusaSlicer needed the same
+  tool, and its per-tool backup name changed from `user_backup-presets.*` to a
+  neutral `presets-backup.*`. The wording above is left as it was written, since
+  it records what was done at the time; see `odd/tasks/slicer-presets-script.md`.

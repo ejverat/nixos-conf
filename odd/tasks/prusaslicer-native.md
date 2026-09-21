@@ -153,13 +153,10 @@ were successes:
 
 ## Follow-ups
 
-- Onboard PrusaSlicer on chopper the same way OrcaSlicer was (app, and then the
-  preset seed), including the NVIDIA question that OrcaSlicer did not end up
-  needing.
-- Extend the preset sharing: `dotfiles/orcaslicer/user-default/` plus
-  `scripts/orca-presets.sh` is the proven pattern, and PrusaSlicer keeps its
-  presets in its own config directory, so a parallel instance is plausible. Treat
-  the layout as unverified until inspected.
+- ~~Onboard PrusaSlicer on chopper~~ — done, presets and bed assets included.
+- ~~Extend the preset sharing~~ — done: the sync script was generalised into
+  `scripts/slicer-presets.sh <tool> <action>` rather than a parallel instance.
+  See `odd/tasks/slicer-presets-script.md`.
 - Remove the Flatpak once the native build is trusted.
 - FreeCAD is the second half of this backlog item; its 4.5 GiB unpacked footprint
   is the thing to weigh.

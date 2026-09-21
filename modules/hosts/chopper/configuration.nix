@@ -87,7 +87,7 @@
           # Seeds the vendored OrcaSlicer print presets into the app's writable
           # data dir, only when missing, so chopper gets the same printers,
           # filaments and processes as gear5th. Capture or apply later edits with
-          # scripts/orca-presets.sh.
+          # scripts/slicer-presets.sh.
           self.homeModules.orcaslicer-presets
           # Same seed for PrusaSlicer. It has no GTK module of its own here
           # because chopper already imports homeModules.gtk above.
