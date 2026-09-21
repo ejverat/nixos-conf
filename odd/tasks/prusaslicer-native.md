@@ -84,15 +84,12 @@ means it does not point at the Flatpak's config location.
 
 ## Risks
 
-- **The native data directory is inferred, not observed.** `~/.config/PrusaSlicer`
-  is the strong expectation: the real binary references `XDG_CONFIG_HOME` and
-  `PrusaSlicer.ini`, the application is named `PrusaSlicer`, and its fork
-  OrcaSlicer uses `${XDG_CONFIG_HOME}/<app_name>` — a component confirmed
-  empirically for OrcaSlicer through its Flatpak layout. It could **not** be
-  observed from the CLI: `--help`, `--info` and `--save` all complete without
-  initialising the data directory. The first GUI launch settles it, and the
-  failure mode is benign and immediately visible (the application would start
-  with no presets), with the Flatpak still installed as rollback.
+- **The native data directory is confirmed.** `~/.config/PrusaSlicer` was the
+  strong inference — the real binary references `XDG_CONFIG_HOME` and
+  `PrusaSlicer.ini`, and its fork OrcaSlicer uses `${XDG_CONFIG_HOME}/<app_name>`
+  — but it could not be observed from the CLI, since `--help`, `--info` and
+  `--save` all complete without initialising it. The first GUI launch settled it;
+  see the evidence below.
 - Presets written by the Flatpak may reference vendor profiles that the Flatpak
   bundled and the nixpkgs build packages differently. Addressed by loading a
   preset, not by assuming; see the evidence below.
@@ -137,9 +134,15 @@ Loading a migrated preset (the check that matters):
 Negative and inconclusive results, recorded so they are not re-run as if they
 were successes:
 
-- **The default data directory was not observed.** `--help`, `--info` and
-  `--save` all finish without initialising the data directory, and a scratch
-  `HOME` stayed empty in every attempt.
+- **The default data directory could not be observed from the CLI** — `--help`,
+  `--info` and `--save` all finish without initialising it, and a scratch `HOME`
+  stayed empty in every attempt — so it was carried as an inference rather than
+  a claim. The first GUI launch then **confirmed it**: the application wrote into
+  `~/.config/PrusaSlicer`, creating `cache/` (4.8 MB of vendor indices and
+  thumbnails), `workflows.json`, and an updated `PrusaSlicer.ini`, all within the
+  same minute. The 7 migrated presets were left untouched beside them.
+- That the application rebuilt `cache/` on first launch also validates excluding
+  it from the migration: it is derived state, not user configuration.
 - **`--load` with three presets at once segfaults** (exit 139) while one preset
   works. Left alone: it is CLI fragility, not a packaging regression, and the
   supported path works.
