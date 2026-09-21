@@ -148,11 +148,29 @@
           };
 
           "Mod+Return".spawn-sh = terminalCmd;
+
+          # Windows: sizing, tiling and floating.
           "Mod+Q".close-window = {};
           "Mod+F".maximize-column = {};
+          "Mod+M".maximize-window-to-edges = {};
+          "Mod+Ctrl+F".expand-column-to-available-width = {};
           "Mod+G".fullscreen-window = {};
-          "Mod+Shift+F".toggle-window-floating = {};
+          "Mod+Shift+G".toggle-windowed-fullscreen = {};
           "Mod+C".center-column = {};
+          "Mod+Ctrl+C".center-visible-columns = {};
+          "Mod+W".toggle-column-tabbed-display = {};
+
+          # Floating: Mod+V is niri's default, Mod+Shift+F stays as the
+          # previous alias so the old muscle memory keeps working.
+          "Mod+V".toggle-window-floating = {};
+          "Mod+Shift+F".toggle-window-floating = {};
+          "Mod+Shift+V".switch-focus-between-floating-and-tiling = {};
+
+          # Column surgery: consume a window into the column, expel it out.
+          "Mod+BracketLeft".consume-or-expel-window-left = {};
+          "Mod+BracketRight".consume-or-expel-window-right = {};
+          "Mod+Comma".consume-window-into-column = {};
+          "Mod+Period".expel-window-from-column = {};
 
           "Mod+H".focus-column-left = {};
           "Mod+L".focus-column-right = {};
@@ -168,6 +186,11 @@
           "Mod+Shift+L".move-column-right = {};
           "Mod+Shift+K".move-window-up = {};
           "Mod+Shift+J".move-window-down = {};
+
+          "Mod+Home".focus-column-first = {};
+          "Mod+End".focus-column-last = {};
+          "Mod+Ctrl+Home".move-column-to-first = {};
+          "Mod+Ctrl+End".move-column-to-last = {};
 
           "Mod+1".focus-workspace = "w0";
           "Mod+2".focus-workspace = "w1";
@@ -191,14 +214,24 @@
           "Mod+Shift+9".move-column-to-workspace = "w8";
           "Mod+Shift+0".move-column-to-workspace = "w9";
 
-# "Mod+V".spawn-sh = ''${config.pkgs.alsa-utils}/bin/amixer sset Capture toggle'';
+# The push-to-talk bind that used to live here is gone: Mod+V is niri's
+          # toggle-window-floating, and the microphone mute has no key yet.
           "XF86AudioRaiseVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
           "XF86AudioLowerVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
 
+          # Sizing: 5% steps on the familiar keys, 10% steps on niri's defaults.
           "Mod+Ctrl+H".set-column-width = "-5%";
           "Mod+Ctrl+L".set-column-width = "+5%";
           "Mod+Ctrl+J".set-window-height = "-5%";
           "Mod+Ctrl+K".set-window-height = "+5%";
+          "Mod+Minus".set-column-width = "-10%";
+          "Mod+Equal".set-column-width = "+10%";
+          "Mod+Shift+Minus".set-window-height = "-10%";
+          "Mod+Shift+Equal".set-window-height = "+10%";
+          "Mod+R".switch-preset-column-width = {};
+          "Mod+Shift+R".switch-preset-column-width-back = {};
+          "Mod+Ctrl+Shift+R".switch-preset-window-height = {};
+          "Mod+Ctrl+R".reset-window-height = {};
 
           "Mod+WheelScrollDown".focus-column-left = {};
           "Mod+WheelScrollUp".focus-column-right = {};
