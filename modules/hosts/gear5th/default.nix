@@ -91,6 +91,9 @@ in {
       # when one is missing, and never overwrites what the GUI has edited.
       # Repo-side changes and GUI captures go through scripts/orca-presets.sh.
       self.homeModules.orcaslicer-presets
+      # Native PrusaSlicer from the main nixpkgs pin. No GTK module of its own
+      # and no pin of its own; see the module for why both are deliberate.
+      self.homeModules.prusaslicer
       # Global GTK theme, so GTK applications resolve a real theme instead of
       # silently falling back to Adwaita light. Depends on the
       # targets.genericLinux in hostModule above putting the nix profile's share
