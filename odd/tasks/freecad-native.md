@@ -47,22 +47,29 @@ migrated with the rest. They are not published anywhere by this change, so no
 redistribution question arises; only the licence of the upstream projects is
 relevant to them, and they are not vendored into the repository.
 
-**Qt theming will differ, and is deliberately not addressed here.** FreeCAD is a
-Qt application, so the global `flake.homeModules.gtk` theme — which fixed
-OrcaSlicer and PrusaSlicer — does nothing for it. The Flatpak inherits Breeze from
-its KDE runtime. Natively:
+**Qt theming: the prediction was wrong, and there is nothing to fix.** FreeCAD is
+a Qt application, so the global `flake.homeModules.gtk` theme — which fixed
+OrcaSlicer and PrusaSlicer — does nothing for it, and this was expected to mean the
+native build would open light: `QT_QPA_PLATFORMTHEME` is unset, so Qt ignores the
+user's `qt6ct` configuration and falls back to Fusion.
 
-- `QT_QPA_PLATFORMTHEME` is **unset** in the session, so Qt ignores `qt6ct` and
-  falls back to Fusion, which is light.
-- The user does have `~/.config/qt6ct/qt6ct.conf` with a dark custom palette and
-  Flat-Remix icons, and `/usr/bin/qt6ct` exists — but as a **Debian** package, and
-  its platform-theme plugin would have to be ABI-compatible with the nix Qt build.
-  Mixing the two is exactly the kind of fragility worth avoiding.
+That reasoning missed something. **FreeCAD ships and applies its own theme.**
+`share/Gui/Stylesheets/` carries `FreeCAD.qss`, `defaults.qss` and an overlay
+directory, and the application reads `Theme` and `StyleSheet` from its own
+configuration and applies the stylesheet itself, independently of the Qt platform
+theme. The migrated configuration already selects `Theme = FreeCAD Dark` with
+`StyleSheet = FreeCAD.qss` — the same values the Flatpak's own configuration had,
+verified against the backup — so the appearance carried over unchanged rather than
+depending on anything the KDE runtime used to provide.
 
-So the native build will probably open light. Fixing that belongs in a separate
-change, ideally with a per-application wrapper as OrcaSlicer used, because a
-session-wide variable on gear5th is the mechanism that has already taken the
-session down twice.
+Confirmed by use: the native build looks right. The follow-up is therefore closed
+as **unnecessary** rather than deferred, and no wrapper is needed — which also makes
+the earlier note about `wrapProgram` being a trap here moot.
+
+What would remain is a different and unrelated question: making `qt6ct` apply to Qt
+applications *generally* on this host. That is a session-wide variable, the
+mechanism that has already taken the session down twice, and FreeCAD does not need
+it.
 
 ## Decisions
 
@@ -153,7 +160,12 @@ invalidates them anyway.
 
 ## Follow-ups
 
-- Qt theming for FreeCAD: a per-application wrapper rather than a session-wide
-  variable, once the application is confirmed working.
-- Remove the FreeCAD Flatpak once the native build is trusted; that also frees
-  `org.kde.Platform//6.10`, the last runtime it keeps on gear5th.
+- ~~Qt theming for FreeCAD~~ — closed as **unnecessary**: FreeCAD applies its own
+theme from its own configuration, and the migrated configuration already selects
+its dark stylesheet. See the finding above.
+- ~~Remove the FreeCAD Flatpak~~ — done, and the runtime prune with it: gear5th now
+has **no Flatpak applications and no runtimes**, and `/var/lib/flatpak` went from
+1.7 G to 120 M.
+- **Making `qt6ct` apply to Qt applications generally** is a separate, unrelated
+question. It needs a session-wide variable, which on this host is the mechanism
+that has already taken the session down twice, and FreeCAD does not need it.
