@@ -32,10 +32,11 @@ The shareable subset is **56 files / 184 K**: 28 `.json` presets and their 28
 
 Two facts that shape the design:
 
-- **chopper does not have OrcaSlicer installed.** `modules/hosts/chopper/configuration.nix`
-  imports neither `nixosModules.orcaslicer` nor `homeModules.gtk`, so the presets
-  have nowhere to land yet. Onboarding chopper is a separate change (it also
-  needs the NVIDIA path: chopper is NVIDIA, gear5th is AMD).
+- **chopper did not have OrcaSlicer installed.** `modules/hosts/chopper/configuration.nix`
+  imported neither `nixosModules.orcaslicer` nor `homeModules.gtk`, so the presets
+  had nowhere to land. Onboarding chopper is part of this change, and it also
+  needs the NVIDIA path: chopper is NVIDIA, gear5th is AMD. *(Resolved: see
+  "Chopper onboarding" below.)*
 - **Both hosts consume the same `nixpkgs-orca` pin**, so both would run exactly
   2.4.2 and the presets' `inherits` chains keep resolving against matching
   system preset names. Pinning is what makes raw presets safe to share.
@@ -133,7 +134,7 @@ Enabling the second host needed three registrations in
 | home | `homeModules.gtk` | without it chopper has no GTK theme at all, so OrcaSlicer would open light there exactly as it did on gear5th |
 | home | `homeModules.orcaslicer-presets` | seeds the vendored presets |
 
-Verified by evaluation, not by building the host:
+Verified by evaluation first:
 
 - `nixosConfigurations.chopper.config.system.build.toplevel.drvPath` evaluates.
 - `home-manager.users.ejverat.xdg.configFile."gtk-3.0/settings.ini".text`
@@ -142,6 +143,41 @@ Verified by evaluation, not by building the host:
 - `home-manager.users.ejverat.home.activation.orcaPresetSeed.data` contains the
   seed body.
 
+### Chopper activation (hardware)
+
+The host was then actually switched and verified, on 2026-09-20 23:45 (system
+generation 119, home-manager generation `6cq3qwfzk1cdn9ljmd37ww9nafhz9d1z`):
+
+| Check | Observed |
+| --- | --- |
+| app installed | `orca-slicer 2.4.2` in `/run/current-system/sw/bin` |
+| seed ran | journal: `orca-presets: seeded 56 preset file(s) into /home/ejverat/.config/OrcaSlicer/user/default` |
+| live vs repo | `scripts/orca-presets.sh status` reports `up to date: 56` |
+| GTK theme | `~/.config/gtk-3.0/settings.ini` and the `gtk-4.0/*` files are home-manager links, and the user confirms the theme renders correctly in the app |
+| `force` collision | no `*.bak` was left behind, and the managed `settings.ini` carries every key the replaced file had |
+| `#38` after merging `origin/main` (`33763ce`) | chopper's `environment.systemPackages` no longer lists chromium/google-chrome/slack/teams; they resolve from `home.packages` |
+| merge build | `nix build .#nixosConfigurations.chopper.config.system.build.toplevel --no-link` and `.#homeConfigurations.gear5th.activationPackage` both succeed |
+
+### Open: partial UI rendering on the internal panel
+
+Inside the app, some UI regions show **vertical lines** on the integrated panel
+(`eDP-1`, 1366x768 @ 60.003 Hz) while the same regions are correct on the
+external monitor (`HDMI-A-1`, 1920x1080 @ 60 Hz). Both outputs are scale 1;
+niri 26.04, NVIDIA GTX 1650 on the proprietary driver. This is an observation,
+not a diagnosis: the app is **GTK 3** (`gtk+3-3.24.52` + `wxwidgets-3.3.3.1`), so
+the GTK 4 setting below cannot be its cause.
+
+Triage order if it is worth chasing, cheapest discriminator first:
+
+1. `GDK_BACKEND=x11 orca-slicer` — if the artifact disappears, the Wayland/GL
+   client path or niri's damage tracking for that output is the suspect.
+2. `GDK_GL=disable orca-slicer` — if it disappears, it is the GTK 3 GL renderer
+   on the proprietary driver, which is the class `withNvidiaGLWorkaround`
+   addresses (see below).
+3. Move the window between outputs while running: an artifact that follows the
+   window is app-side; one that stays tied to `eDP-1` is output/compositor-side
+   (niri + NVIDIA with two different refresh rates).
+
 Three things worth knowing about the second host:
 
 1. **NixOS needs no `targets.genericLinux`.** Its defaults already put the user
@@ -149,16 +185,29 @@ Three things worth knowing about the second host:
    enough. That whole class of problem is specific to the Debian host.
 2. **`homeModules.gtk` writes `settings.ini` with `force`.** On gear5th that was
    the point. On chopper it means that if a hand-written
-   `~/.config/gtk-3.0/settings.ini` exists there, the managed Nordic file
+   `~/.config/gtk-3.0/settings.ini` existed there, the managed Nordic file
    replaces it, and because `force` bypasses collision handling the NixOS
-   `backupFileExtension = "bak"` would **not** leave a copy. Check and keep that
-   file before the first switch on chopper.
-3. **Home Manager emits a gtk4 warning for chopper.** Its `home.stateVersion` is
-   older than 26.05, so it keeps the legacy `config.gtk.theme` default for GTK 4
-   and asks to either pin `gtk.gtk4.theme = config.gtk.theme` or adopt the new
-   behavior with `gtk.gtk4.theme = null`. gear5th (26.11) does not see it. It is
-   a warning, not an error; the choice was deliberately left to the user rather
-   than changed blindly, because it affects GTK 4 apps on that host.
+   `backupFileExtension = "bak"` would **not** leave a copy. *(Resolved at the
+   first switch: no backup was needed and no key was lost — the module carries
+   the old file's custom keys verbatim.)*
+3. **GTK 4 theme: decision pending, recommendation `gtk.gtk4.theme = null`.**
+   chopper's `home.stateVersion` is `25.11`, older than the release that changed
+   the default, so home-manager keeps the legacy behaviour (GTK 4 inherits
+   `gtk.theme`) and warns. What each option actually does:
+
+   | Option | Effect |
+   | --- | --- |
+   | `gtk.gtk4.theme = config.gtk.theme` (legacy) | keeps writing a GTK 4 `gtk.css`/`settings.ini` that names Nordic. libadwaita applications ignore a named theme and only recolor from Adwaita, so this path mostly yields half-applied theming, and it is the deprecated behaviour. |
+   | `gtk.gtk4.theme = null` (new default) | stops overriding the GTK 4 theme, so those apps use their own dark/light preference, which `gtk.colorScheme = "dark"` already sets. Silences the warning and matches gear5th (`26.11`). |
+
+   Evidence for the recommendation: **this configuration installs no GTK 4 or
+   libadwaita software at all** — no `gtk4`/`libadwaita` dependency in
+   `/run/current-system/sw`, in `~/.nix-profile`, or in any `modules/*.nix`. Every
+   GUI application here is GTK 3 (OrcaSlicer, GIMP), Electron/CEF (chromium,
+   google-chrome, slack, teams), VCL (libreoffice), or owns its renderer
+   (wezterm). So the option has no visible effect today, and taking `null`
+   removes a deprecated path and the warning at no cost while `gtk.colorScheme`
+   stays as the correct mechanism for the day a GTK 4 app arrives.
 
 ## NVIDIA on chopper
 
@@ -178,9 +227,19 @@ host only. Note that `nixosConf.<feature>.*` options live in the home-manager
 module system (as `kanshi` shows), so they cannot govern a package that a NixOS
 module installs — hence the absence of an option for this.
 
+After the first real run on chopper this stays **off**: the reported artifact is
+partial rendering on the integrated panel, not the black/mangled viewport this
+workaround exists for, and the recommended triage (above) only justifies enabling
+it if `GDK_GL=disable` makes the artifact disappear.
+
 ## Follow-ups
 
-- Onboard chopper: `nixosModules.orcaslicer` (+ the AMD/NVIDIA GL question) and
-  `homeModules.gtk`, then register this module there too.
+- ~~Onboard chopper~~ — done: `nixosModules.orcaslicer`, `homeModules.gtk` and
+  `homeModules.orcaslicer-presets` are registered, activated and verified on the
+  host (see "Chopper onboarding").
+- **GTK 4 decision** — confirm `gtk.gtk4.theme = null` (recommended) or pin the
+  legacy value; one line in chopper's configuration.
+- **UI rendering on `eDP-1`** — triage steps recorded above; only worth chasing
+  if the artifact becomes disruptive.
 - The seed covers presets only; a future change could extend it to the printer
   configs if they ever become user-authored.
