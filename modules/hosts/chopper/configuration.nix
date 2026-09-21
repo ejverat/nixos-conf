@@ -31,6 +31,10 @@
       self.nixosModules.gentle-pi
       self.nixosModules.engram
       self.nixosModules.teams
+      # Native OrcaSlicer, on the same pinned 2.4.2 as gear5th so the shared
+      # print presets' inherits chains keep resolving against matching system
+      # preset names.
+      self.nixosModules.orcaslicer
       self.nixosModules.secrets
 
       # home-manager as a NixOS module: chopper consumes the same shared
@@ -69,6 +73,19 @@
           # Phase 2, slice 4: shared plugin/rc wiring; chopper installs its own
           # wrapper flavor (secrets-aware myZsh) below.
           self.homeModules.zsh
+          # GTK theme, so OrcaSlicer and the other GTK apps resolve a real theme
+          # instead of silently falling back to Adwaita light. NixOS already
+          # puts the user profile's share dir in XDG_DATA_DIRS, so unlike
+          # gear5th this needs no targets.genericLinux equivalent.
+          # NOTE: the module writes ~/.config/gtk-3.0/settings.ini with
+          # `force`, so a hand-written file at that path on chopper is replaced
+          # by the managed Nordic theme.
+          self.homeModules.gtk
+          # Seeds the vendored OrcaSlicer print presets into the app's writable
+          # data dir, only when missing, so chopper gets the same printers,
+          # filaments and processes as gear5th. Capture or apply later edits with
+          # scripts/orca-presets.sh.
+          self.homeModules.orcaslicer-presets
           # Deliberately NOT imported on chopper:
           #   niri      -> programs.niri (system) owns the session + DM wiring
           #   noctalia  -> ~/.config/noctalia/settings.json is runtime state the

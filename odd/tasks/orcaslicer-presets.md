@@ -122,6 +122,62 @@ copies so the real repo and the real presets were never touched:
 script derives its file lists with `find` over the vendored tree, so the array
 was dead code and was removed rather than silenced.
 
+## Chopper onboarding
+
+Enabling the second host needed three registrations in
+`modules/hosts/chopper/configuration.nix`:
+
+| Layer | Module | Why |
+| --- | --- | --- |
+| NixOS | `nixosModules.orcaslicer` | installs the app into `environment.systemPackages` |
+| home | `homeModules.gtk` | without it chopper has no GTK theme at all, so OrcaSlicer would open light there exactly as it did on gear5th |
+| home | `homeModules.orcaslicer-presets` | seeds the vendored presets |
+
+Verified by evaluation, not by building the host:
+
+- `nixosConfigurations.chopper.config.system.build.toplevel.drvPath` evaluates.
+- `home-manager.users.ejverat.xdg.configFile."gtk-3.0/settings.ini".text`
+  contains `gtk-theme-name=Nordic-bluish-accent-standard-buttons` and
+  `gtk-application-prefer-dark-theme=1`.
+- `home-manager.users.ejverat.home.activation.orcaPresetSeed.data` contains the
+  seed body.
+
+Three things worth knowing about the second host:
+
+1. **NixOS needs no `targets.genericLinux`.** Its defaults already put the user
+   profile's share dir into `XDG_DATA_DIRS`, so `homeModules.gtk` alone is
+   enough. That whole class of problem is specific to the Debian host.
+2. **`homeModules.gtk` writes `settings.ini` with `force`.** On gear5th that was
+   the point. On chopper it means that if a hand-written
+   `~/.config/gtk-3.0/settings.ini` exists there, the managed Nordic file
+   replaces it, and because `force` bypasses collision handling the NixOS
+   `backupFileExtension = "bak"` would **not** leave a copy. Check and keep that
+   file before the first switch on chopper.
+3. **Home Manager emits a gtk4 warning for chopper.** Its `home.stateVersion` is
+   older than 26.05, so it keeps the legacy `config.gtk.theme` default for GTK 4
+   and asks to either pin `gtk.gtk4.theme = config.gtk.theme` or adopt the new
+   behavior with `gtk.gtk4.theme = null`. gear5th (26.11) does not see it. It is
+   a warning, not an error; the choice was deliberately left to the user rather
+   than changed blindly, because it affects GTK 4 apps on that host.
+
+## NVIDIA on chopper
+
+The `orca-slicer` package exposes `withNvidiaGLWorkaround`, which forces
+Mesa/zink and disables WebKit's DMA-BUF renderer for the proprietary driver.
+chopper is NVIDIA, so it may be needed there, but it was **not** enabled:
+rendering on that host cannot be verified from gear5th, and forcing zink on a
+working NVIDIA setup could regress it. If chopper's 3D viewport renders black or
+mangles the UI, the change is one line in `orcaFor`:
+
+```nix
+(import ../lib/_pkgs.nix) inputs.nixpkgs-orca pkgs.stdenv.hostPlatform.system
+```
+
+becomes an `orca-slicer.override { withNvidiaGLWorkaround = true; }` for that
+host only. Note that `nixosConf.<feature>.*` options live in the home-manager
+module system (as `kanshi` shows), so they cannot govern a package that a NixOS
+module installs — hence the absence of an option for this.
+
 ## Follow-ups
 
 - Onboard chopper: `nixosModules.orcaslicer` (+ the AMD/NVIDIA GL question) and
