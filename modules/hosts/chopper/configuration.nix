@@ -26,7 +26,6 @@
       self.nixosModules.ollama
       self.nixosModules.gimp
       self.nixosModules.libreoffice
-      self.nixosModules.hyprpicker
       self.nixosModules.chromium
       self.nixosModules.deepseek-harness
       self.nixosModules.pi
@@ -64,6 +63,7 @@
           # Phase 2, slice 2 (user-level packages and the vendored dotfiles).
           self.homeModules.dotfiles
           self.homeModules.gh
+          self.homeModules.hyprpicker
           self.homeModules.wezterm
           self.homeModules.tmux
           # Phase 2, slice 4: shared plugin/rc wiring; chopper installs its own
