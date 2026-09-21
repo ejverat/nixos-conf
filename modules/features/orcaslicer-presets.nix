@@ -20,9 +20,13 @@
   flake.homeModules.orcaslicer-presets = { config, lib, ... }: {
     home.activation.orcaPresetSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] (
       import ../lib/_preset-seed.nix {
-        homeDir = config.home.homeDirectory;
-        vendored = ../../dotfiles/orcaslicer/user-default;
-        destination = "OrcaSlicer/user/default";
+        inherit lib;
+        seeds = [
+          {
+            src = ../../dotfiles/orcaslicer/user-default;
+            dst = "${config.home.homeDirectory}/.config/OrcaSlicer/user/default";
+          }
+        ];
       }
     );
   };

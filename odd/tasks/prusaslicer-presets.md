@@ -121,6 +121,44 @@ Behaviour worth stating plainly: the seed is a **no-op on gear5th**, because all
 seven files already exist there — that is the "only when missing" policy working
 as intended. On chopper, which is clean, it is what fills the directories.
 
+## Bed assets: fetched from upstream, not vendored
+
+The vendored printer preset references two bed assets by absolute path, so
+shipping the preset alone leaves a preset whose custom bed silently does not
+render — which is why this was added before testing on chopper rather than after
+someone noticed an odd-looking bed.
+
+They are **not the user's work**. They come from `github.com/RyanT95/KP3S-Prusa`,
+distributed under **Creative Commons Attribution-NonCommercial 4.0
+International**, and this repository is public, so vendoring them would mean
+republishing third-party material. They are fetched from a pinned upstream
+revision instead:
+
+```
+rev  = 2b5f86f2e7e1e9a345c5da91f400604e3778cdef
+hash = sha256-XcqaaZIIBws7yCokc24kKzZIfkKtWZ4F7oPFO3ez7+0=
+```
+
+That keeps third-party content out of the repository, leaves the licence and the
+provenance with the source they belong to, and makes the exact revision
+auditable. Only the two referenced files are extracted, so nothing else from the
+bundle lands on disk.
+
+The revision was chosen after checking that both assets there are
+**byte-identical** to the copies already in use on gear5th — `956dd6c7…` for the
+STL and `31b5fad6…` for the SVG — so this cannot change the bed being sliced
+against. That was verified against the built store path, not inferred from the
+revision date.
+
+**Destination, and the coupling worth knowing.** The assets are seeded to the
+exact absolute path the preset references. If that preset is ever repointed, this
+destination has to follow it; rewriting the preset instead would conflict with
+the never-overwrite policy, which exists so that GUI edits always win.
+
+The shared seed body gained a `seeds` list of `{ src, dst }` pairs for this, so a
+single activation now places a host's whole set — config trees and
+outside-the-config assets alike — rather than needing one mechanism for each.
+
 ## Follow-ups
 
 - Extend the `push`/`pull` script to PrusaSlicer. `scripts/orca-presets.sh` is
