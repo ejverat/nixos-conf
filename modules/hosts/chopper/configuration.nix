@@ -31,6 +31,9 @@
       # print presets' inherits chains keep resolving against matching system
       # preset names.
       self.nixosModules.orcaslicer
+      # Native PrusaSlicer, from the same main nixpkgs pin as gear5th so the two
+      # hosts stay on one version and the shared presets keep resolving.
+      self.nixosModules.prusaslicer
       self.nixosModules.secrets
 
       # home-manager as a NixOS module: chopper consumes the same shared
@@ -86,6 +89,9 @@
           # filaments and processes as gear5th. Capture or apply later edits with
           # scripts/orca-presets.sh.
           self.homeModules.orcaslicer-presets
+          # Same seed for PrusaSlicer. It has no GTK module of its own here
+          # because chopper already imports homeModules.gtk above.
+          self.homeModules.prusaslicer-presets
           # Deliberately NOT imported on chopper:
           #   niri      -> programs.niri (system) owns the session + DM wiring
           #   noctalia  -> ~/.config/noctalia/settings.json is runtime state the
