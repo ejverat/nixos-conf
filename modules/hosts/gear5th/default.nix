@@ -89,7 +89,7 @@ in {
       self.homeModules.orcaslicer
       # Seeds the vendored print presets into the app's writable data dir, only
       # when one is missing, and never overwrites what the GUI has edited.
-      # Repo-side changes and GUI captures go through scripts/orca-presets.sh.
+      # Repo-side changes and GUI captures go through scripts/slicer-presets.sh.
       self.homeModules.orcaslicer-presets
       # Native PrusaSlicer from the main nixpkgs pin. No GTK module of its own
       # and no pin of its own; see the module for why both are deliberate.

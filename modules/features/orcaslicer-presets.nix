@@ -11,8 +11,9 @@
   #
   # The seed never overwrites, so it is safe on a host that already has presets
   # and safe to re-run on every activation. Repo-side edits reach a host that
-  # already has the files through `scripts/orca-presets.sh pull`; capturing GUI
-  # edits back into the repository is `scripts/orca-presets.sh push`.
+  # already has the files through `scripts/slicer-presets.sh orca pull`;
+  # capturing GUI edits back into the repository is
+  # `scripts/slicer-presets.sh orca push`.
   #
   # The presets reference system preset names through their `inherits` chains, so
   # both hosts should stay on the same `nixpkgs-orca` pin; the flake gives that

@@ -175,8 +175,9 @@ pair rather than keeping machinery that had lost its justification.
 
 ## Follow-ups
 
-- Extend the `push`/`pull` script to PrusaSlicer. `scripts/orca-presets.sh` is
-  OrcaSlicer-specific; the honest move is to generalise it rather than put
-  PrusaSlicer handling inside a script named after the other application.
+- ~~Extend the `push`/`pull` script to PrusaSlicer~~ — done, by generalising it
+  rather than patching it: `scripts/orca-presets.sh` became
+  `scripts/slicer-presets.sh <tool> <action>`. See
+  `odd/tasks/slicer-presets-script.md`.
 - Remove the PrusaSlicer Flatpak on gear5th once the native build is trusted.
 - FreeCAD is the remaining application in the backlog item.
