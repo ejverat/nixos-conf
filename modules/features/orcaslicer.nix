@@ -7,48 +7,9 @@
   # the same policy the flake-level perSystem pkgs and gear5th's pkgs use.
   # orca-slicer itself is AGPL-3.0 (free); the flag is there so the closure
   # does not start failing if a dependency ever needs it.
-  orcaBase = pkgs:
+  orcaFor = pkgs:
     ((import ../lib/_pkgs.nix) inputs.nixpkgs-orca pkgs.stdenv.hostPlatform.system)
     .orca-slicer;
-
-  # Force the GTK theme for this app only.
-  #
-  # gear5th's ~/.config/gtk-3.0/settings.ini names
-  # `Nordic-bluish-accent-standard-buttons-v40`, but ~/.themes does not exist
-  # (those files only survive under ~/.dotfiles.bak), so GTK cannot resolve the
-  # theme and falls back to Adwaita light. The Flatpak never showed this
-  # because its sandbox redirects XDG_CONFIG_HOME to ~/.var/app/<id>/config,
-  # whose gtk-3.0/ is empty, so it used the host gsettings value instead.
-  #
-  # GTK_THEME takes precedence over settings.ini, so this fix is local to
-  # OrcaSlicer and leaves the (broken) global GTK config untouched. Adwaita-dark
-  # already ships in /usr/share/themes, so there is no extra dependency.
-  # To use the originally intended look instead, install `pkgs.nordic` and set
-  # this to "Nordic-bluish-accent-standard-buttons" (the nixpkgs theme has no
-  # `-v40` suffix).
-  gtkTheme = "Adwaita-dark";
-
-  orcaFor = pkgs: let
-    base = orcaBase pkgs;
-  in
-    pkgs.symlinkJoin {
-      name = "orca-slicer-${base.version}";
-      paths = [base];
-      nativeBuildInputs = [pkgs.makeWrapper];
-
-      # The package's own bin/orca-slicer is a compiled wrapGAppsHook3 wrapper
-      # whose real binary sits beside it as bin/.orca-slicer-wrapped. Do NOT
-      # reach for wrapProgram here: it renames the target to .<name>-wrapped and
-      # would clobber that 68 MB binary with the 20 KB wrapper. Build a fresh
-      # wrapper over the absolute store path instead. That is safe because the
-      # gapps wrapper execs bin/.orca-slicer-wrapped by absolute path and the
-      # real binary resolves share/OrcaSlicer by absolute path too.
-      postBuild = ''
-        rm -f $out/bin/orca-slicer
-        makeWrapper ${base}/bin/orca-slicer $out/bin/orca-slicer \
-          --set GTK_THEME ${gtkTheme}
-      '';
-    };
 in {
   flake.nixosModules.orcaslicer = { pkgs, ... }: {
     environment.systemPackages = [(orcaFor pkgs)];
@@ -63,6 +24,17 @@ in {
   # home.file: Nix owns the binary, the user owns the presets. Upstream only
   # migrates data out of a Flatpak when the app itself runs as a Flatpak (it
   # checks for /.flatpak-info), so the move off the Flatpak was a manual copy.
+  #
+  # This used to carry a per-app `GTK_THEME` wrapper because the app opened
+  # light while its Flatpak predecessor opened dark. That was a symptom: the
+  # real cause was that no GTK theme could be resolved on this host at all, and
+  # it is fixed at the source by `flake.homeModules.gtk`. Wrapping the app only
+  # for itself would leave it the one GTK application on the machine pinned to
+  # a different theme, and would silently override any later theme change, so
+  # the wrapper is deliberately gone. If OrcaSlicer ever needs to diverge
+  # again, reinstate it as a `symlinkJoin` + `makeWrapper` here — never with
+  # `wrapProgram`, which renames its target to `.<name>-wrapped` and would
+  # clobber the package's real 68 MB `bin/.orca-slicer-wrapped` binary.
   flake.homeModules.orcaslicer = { pkgs, ... }: {
     home.packages = [(orcaFor pkgs)];
   };

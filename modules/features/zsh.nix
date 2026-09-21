@@ -118,6 +118,26 @@ in {
       zdotFilesDirname = "zsh-dot-dir-portable";
       zshenv.content = ''
         export PATH="$HOME/.local/bin:$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+
+        # home-manager session variables. On NixOS the system wires these in; on
+        # a non-NixOS host `targets.genericLinux` only adds the sourcing to
+        # bash, so a zsh login shell would never see them. This is what carries
+        # XDG_DATA_DIRS (the nix profiles' share dirs) into the session, which
+        # GTK needs to resolve `themes/<name>` and launchers need to see Nix
+        # `.desktop` entries. Sourced from zshenv so non-interactive shells and
+        # the niri session inherit it too.
+        #
+        # The guard is not optional: zshenv runs for every zsh invocation, and
+        # hm-session-vars.sh appends to these variables rather than replacing
+        # them, so sourcing it unguarded grows XDG_DATA_DIRS and TERMINFO_DIRS
+        # without bound across nested shells (observed threefold after two
+        # levels of nesting).
+        if [ -z "''${__HM_SESSION_VARS_SOURCED:-}" ] \
+          && [ -r "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
+          . "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+          export __HM_SESSION_VARS_SOURCED=1
+        fi
+
         # Nix-built tools need the nix locale archive: perl (pinned for
         # gentle-profile) prints "Setting locale failed" for every call without
         # it, and a PAM/SSH session never sees home-manager's environment.d,
