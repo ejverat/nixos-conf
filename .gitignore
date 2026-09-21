@@ -4,3 +4,10 @@
 # Nix build results
 result
 result-*
+
+# OrcaSlicer writes this report into the current working directory on exit, so
+# it lands at the repository root whenever the slicer is launched from there.
+# Anchored to the root on purpose: `result` and `result-*` above are unanchored
+# because they come from `nix build`, but a bare `result.json` would also hide a
+# legitimate file of that name anywhere in the tree.
+/result.json
