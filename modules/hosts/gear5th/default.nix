@@ -97,6 +97,9 @@ in {
       # Seeds the vendored PrusaSlicer presets into the application's writable
       # config directory, only when one is missing, exactly like OrcaSlicer's.
       self.homeModules.prusaslicer-presets
+      # Native FreeCAD from the main nixpkgs pin. No GTK module: FreeCAD is Qt, so
+      # the global GTK theme does not apply to it. See the module.
+      self.homeModules.freecad
       # Global GTK theme, so GTK applications resolve a real theme instead of
       # silently falling back to Adwaita light. Depends on the
       # targets.genericLinux in hostModule above putting the nix profile's share
