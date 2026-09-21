@@ -61,6 +61,8 @@ zshenv sourcing.
 5. Build, verify the generated `settings.ini` and `XDG_DATA_DIRS`, confirm
    chopper still evaluates.
 6. Activate, then commit and ship through the issue-first PR flow.
+   Work-unit commit `01c437b1bec9a27e5c4957ab9e967208c5bdb1bf` on
+   `feat/gear5th-session-gtk-theme`, cut from `main` at `b7e2452`.
 
 ## Risks
 
