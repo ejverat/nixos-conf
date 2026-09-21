@@ -22,11 +22,9 @@
       self.nixosModules.claude-code
       self.nixosModules.antigravity
       self.nixosModules.google-chrome
-      self.nixosModules.kanshi
       self.nixosModules.ollama
       self.nixosModules.gimp
       self.nixosModules.libreoffice
-      self.nixosModules.hyprpicker
       self.nixosModules.chromium
       self.nixosModules.deepseek-harness
       self.nixosModules.pi
@@ -64,6 +62,8 @@
           # Phase 2, slice 2 (user-level packages and the vendored dotfiles).
           self.homeModules.dotfiles
           self.homeModules.gh
+          self.homeModules.hyprpicker
+          self.homeModules.kanshi
           self.homeModules.wezterm
           self.homeModules.tmux
           # Phase 2, slice 4: shared plugin/rc wiring; chopper installs its own
@@ -78,6 +78,23 @@
         ];
 
         nixosConf.zsh.wrapper = self.packages.${pkgs.stdenv.hostPlatform.system}.myZsh;
+
+        # Laptop + dock monitor profiles, consumed by flake.homeModules.kanshi
+        # (modules/features/kanshi.nix) and written to ~/.config/kanshi/config.
+        nixosConf.kanshi.config = ''
+          profile home {
+            output HDMI-A-1 enable scale 1.0 mode 1920x1080@60.000Hz position 0,0
+            output eDP-1 enable scale 1.0 mode 1366x768@60.003Hz position 0,1080
+          }
+
+          profile docked {
+            output HDMI-A-1 enable scale 1.0 mode 1920x1080@60.000Hz position 0,0
+          }
+
+          profile laptop {
+            output eDP-1 enable scale 1.0 mode 1366x768@60.003Hz position 0,0
+          }
+        '';
 
         home.username = "ejverat";
         home.homeDirectory = "/home/ejverat";
