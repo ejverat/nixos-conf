@@ -89,7 +89,37 @@ they belong to `~/LDATA`, not to this repository.
 
 ## Verification evidence
 
-(to be filled in as tasks complete)
+Vendoring:
+
+- 7 files / 60 K into `dotfiles/prusaslicer/presets/` — `printer/` 1, `print/` 3,
+  `filament/` 2, `physical_printer/` 1. `diff -r` against the live directories is
+  identical for all four.
+
+Generalisation, and the regression check that matters:
+
+- `git mv` recorded the library rename, so history is preserved
+  (`R modules/lib/_orca-presets.nix -> modules/lib/_preset-seed.nix`).
+- gear5th's generated activation contains **both** hooks, `orcaPresetSeed` and
+  `prusaPresetSeed`, resolving to
+  `~/.config/OrcaSlicer/user/default` and `~/.config/PrusaSlicer` respectively.
+  OrcaSlicer's destination and policy are therefore unchanged by the rename —
+  that was the risk of touching merged code, and it is checked rather than
+  assumed.
+- `nix build .#homeConfigurations.gear5th.activationPackage` succeeds and
+  `prusa-slicer` 2.9.6 is still in the profile.
+
+chopper:
+
+- `nixosConfigurations.chopper.config.system.build.toplevel.drvPath` evaluates.
+- Its `environment.systemPackages` now carries both `prusa-slicer-2.9.6` and
+  `orca-slicer-2.4.2`.
+- Both seed hooks reach chopper's home activation with the same two destinations,
+  so the presets land there through the same mechanism as OrcaSlicer's rather
+  than a second one.
+
+Behaviour worth stating plainly: the seed is a **no-op on gear5th**, because all
+seven files already exist there — that is the "only when missing" policy working
+as intended. On chopper, which is clean, it is what fills the directories.
 
 ## Follow-ups
 
