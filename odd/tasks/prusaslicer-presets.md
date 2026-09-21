@@ -150,14 +150,28 @@ STL and `31b5fad6…` for the SVG — so this cannot change the bed being sliced
 against. That was verified against the built store path, not inferred from the
 revision date.
 
-**Destination, and the coupling worth knowing.** The assets are seeded to the
-exact absolute path the preset references. If that preset is ever repointed, this
-destination has to follow it; rewriting the preset instead would conflict with
-the never-overwrite policy, which exists so that GUI edits always win.
+**Destination: inside the config directory.** The assets live in
+`~/.config/PrusaSlicer/bed-assets/`, so the whole PrusaSlicer setup stays in one
+place instead of reaching into the user's `~/LDATA` tree.
 
-The shared seed body gained a `seeds` list of `{ src, dst }` pairs for this, so a
-single activation now places a host's whole set — config trees and
-outside-the-config assets alike — rather than needing one mechanism for each.
+**They are linked, not seeded**, and the split is deliberate: the presets are
+mutable runtime state the application rewrites, so they are seeded and never
+overwritten, while the assets are read-only inputs the application only ever
+reads, so `home.file` links them and they cannot drift from the pinned revision.
+
+**Moving them meant repointing the presets**, and not only the repository copies.
+Because a preset references them by absolute path and the seed never overwrites,
+editing only the vendored copy would have left the host still reading the old
+location. Both the vendored and the live preset were changed together, and the
+old path no longer appears anywhere under the config directory.
+
+That absolute path embeds the user name. Fine here, because both hosts run the
+same account; a host with a different one would need its preset repointed.
+
+An earlier revision of this change generalised the seed body to accept a *list* of
+`{ src, dst }` pairs so it could place the assets too. Once the assets moved to
+`home.file` that generality had no consumer, so the body went back to a single
+pair rather than keeping machinery that had lost its justification.
 
 ## Follow-ups
 

@@ -1,6 +1,5 @@
-# Shared shell body that seeds source trees into writable destinations, used by
-# the slicer preset features to place things the applications expect to find on
-# disk.
+# Shared shell body that seeds a source tree into a writable destination, used
+# by the slicer preset features to place the presets their applications expect.
 #
 # Why a seed and not `home.file`: these destinations are written to at runtime by
 # the applications (new presets, edits, caches, an instance lock), and store paths
@@ -9,24 +8,25 @@
 # the user edited in the GUI always wins over the seeded one. That is the same
 # policy `_gentle-profile.nix` uses.
 #
+# Read-only inputs are a different case and do not belong here: the PrusaSlicer
+# bed assets are linked with `home.file` instead, because the application only
+# ever reads them and a link cannot drift.
+#
 # Applying repo-side changes to a host that already has the files is deliberately
 # not this body's job: that is what the preset sync script is for.
 #
-# `seeds` is a list of `{ src, dst }` pairs, and the body is structure-agnostic:
-# the source tree is walked recursively and recreated verbatim under `dst`.
-# OrcaSlicer keeps JSON presets with `.info` sidecars under `user/default/<kind>/`,
-# PrusaSlicer keeps flat `.ini` files directly under `<kind>/`, and a pair can
-# also target a path outside the config directory when an application references
-# an asset by absolute path. None of those shapes is assumed here.
+# The body is structure-agnostic: the source tree is walked recursively and
+# recreated verbatim under `dst`. OrcaSlicer keeps JSON presets with `.info`
+# sidecars under `user/default/<kind>/` and PrusaSlicer keeps flat `.ini` files
+# directly under `<kind>/`; neither shape is assumed.
 #
 # Lives under modules/lib/ with a leading underscore so import-tree skips it.
 {
-  lib,
-  seeds,
-}:
-lib.concatMapStrings (seed: ''
-  src=${lib.escapeShellArg seed.src}
-  dst=${lib.escapeShellArg seed.dst}
+  src,
+  dst,
+}: ''
+  src=${builtins.toJSON src}
+  dst=${builtins.toJSON dst}
 
   if [ ! -d "$src" ]; then
     echo "preset-seed: no source tree at $src, nothing to seed" >&2
@@ -47,4 +47,4 @@ lib.concatMapStrings (seed: ''
       echo "preset-seed: seeded $seeded file(s) into $dst"
     fi
   fi
-'') seeds
+''
