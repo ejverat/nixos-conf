@@ -214,6 +214,38 @@
           "Mod+Shift+9".move-column-to-workspace = "w8";
           "Mod+Shift+0".move-column-to-workspace = "w9";
 
+          # Workspaces beyond the number keys: the wheel used to be the only
+          # way to change workspace, and nothing could move a column there.
+          "Mod+Tab".focus-workspace-previous = (_: {});
+          "Mod+Grave".focus-window-previous = (_: {});
+          "Mod+Ctrl+U".move-column-to-workspace-down = (_: {});
+          "Mod+Ctrl+I".move-column-to-workspace-up = (_: {});
+          "Mod+Shift+U".move-workspace-down = (_: {});
+          "Mod+Shift+I".move-workspace-up = (_: {});
+          "Mod+Ctrl+Shift+U".move-window-to-workspace-down = (_: {});
+          "Mod+Ctrl+Shift+I".move-window-to-workspace-up = (_: {});
+
+          # Overview: the zoomed-out workspace view, also reachable from the
+          # touchpad gesture and the top-left hot corner.
+          "Mod+O" = _: {
+            props.repeat = false;
+            content.toggle-overview = (_: {});
+          };
+
+          # Monitors. kanshi drives the two-output profiles, so these need
+          # explicit keys; Mod+Shift+HLJK and Mod+Alt+L are already taken by
+          # move-window and the lock screen.
+          "Mod+Alt+Left".focus-monitor-left = (_: {});
+          "Mod+Alt+Right".focus-monitor-right = (_: {});
+          "Mod+Alt+Up".focus-monitor-up = (_: {});
+          "Mod+Alt+Down".focus-monitor-down = (_: {});
+          "Mod+Alt+Shift+Left".move-column-to-monitor-left = (_: {});
+          "Mod+Alt+Shift+Right".move-column-to-monitor-right = (_: {});
+          "Mod+Alt+Shift+Up".move-column-to-monitor-up = (_: {});
+          "Mod+Alt+Shift+Down".move-column-to-monitor-down = (_: {});
+          "Mod+Alt+Comma".move-workspace-to-monitor-previous = (_: {});
+          "Mod+Alt+Period".move-workspace-to-monitor-next = (_: {});
+
 # The push-to-talk bind that used to live here is gone: Mod+V is niri's
           # toggle-window-floating, and the microphone mute has no key yet.
           "XF86AudioRaiseVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
@@ -233,10 +265,24 @@
           "Mod+Ctrl+Shift+R".switch-preset-window-height = {};
           "Mod+Ctrl+R".reset-window-height = {};
 
-          "Mod+WheelScrollDown".focus-column-left = {};
-          "Mod+WheelScrollUp".focus-column-right = {};
-          "Mod+Ctrl+WheelScrollDown".focus-workspace-down = {};
-          "Mod+Ctrl+WheelScrollUp".focus-workspace-up = {};
+          # Wheel: niri's default cooldown keeps one fast scroll from
+          # jumping several columns or workspaces.
+          "Mod+WheelScrollDown" = _: {
+            props.cooldown-ms = 150;
+            content.focus-column-left = (_: {});
+          };
+          "Mod+WheelScrollUp" = _: {
+            props.cooldown-ms = 150;
+            content.focus-column-right = (_: {});
+          };
+          "Mod+Ctrl+WheelScrollDown" = _: {
+            props.cooldown-ms = 150;
+            content.focus-workspace-down = (_: {});
+          };
+          "Mod+Ctrl+WheelScrollUp" = _: {
+            props.cooldown-ms = 150;
+            content.focus-workspace-up = (_: {});
+          };
         };
 
         xwayland-satellite.path = lib.getExe pkgs.xwayland-satellite;
