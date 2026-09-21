@@ -159,16 +159,41 @@ generation 119, home-manager generation `6cq3qwfzk1cdn9ljmd37ww9nafhz9d1z`):
 | seed after the post-merge switch | `Activating orcaPresetSeed` with no output: idempotent on a host that already has the 56 files |
 | merge build | `nix build .#nixosConfigurations.chopper.config.system.build.toplevel --no-link` and `.#homeConfigurations.gear5th.activationPackage` both succeed |
 
-### Open: partial UI rendering on the internal panel
+### Closed: the eDP-1 artifact is the panel, not this configuration
 
 Inside the app, some UI regions show **vertical lines** on the integrated panel
 (`eDP-1`, 1366x768 @ 60.003 Hz) while the same regions are correct on the
 external monitor (`HDMI-A-1`, 1920x1080 @ 60 Hz). Both outputs are scale 1;
-niri 26.04, NVIDIA GTX 1650 on the proprietary driver. This is an observation,
-not a diagnosis: the app is **GTK 3** (`gtk+3-3.24.52` + `wxwidgets-3.3.3.1`), so
-the GTK 4 setting below cannot be its cause.
+niri 26.04, NVIDIA GTX 1650 on the proprietary driver.
 
-Triage order if it is worth chasing, cheapest discriminator first:
+**Closed as a hardware fault**, on two observations the software hypotheses cannot
+explain:
+
+- The artifact is pinned to a **fixed physical region** of the panel — a section on
+  the left — rather than following the window or the content.
+- It depends on the **colour**: it appears with turquoise, green and blue hues, the
+  same family OrcaSlicer's UI uses.
+
+Compositor and GL defects are defects of **geometry, not of hue**: they produce
+torn regions, smearing or mis-tracked damage, and they move with the window. A
+colour-selective artifact fixed to a physical region is therefore not the GTK 3 GL
+renderer, not the Wayland client path and not niri's damage tracking — which is
+exactly what the triage below was written to distinguish. Those steps are kept for
+the record rather than deleted, because they were the right ones to try before the
+observations above existed.
+
+**If it is ever worth confirming**, the cheapest decisive test is to look for the
+artifact on the **firmware screen** — BIOS/UEFI or the text console — where none of
+our stack is involved. A flat full-screen fill in one of the triggering hues
+reproduces it without any application, and whether it reacts to lid angle or
+refresh rate separates the two hardware candidates: the **eDP cable** through the
+hinge, which is cheap and reseatable, from the **panel** itself, which is a screen
+replacement.
+
+Out of scope for this repository: nothing here configures the panel, and no GDK or
+driver tuning addresses it.
+
+For the record, the triage that was proposed before the colour observation:
 
 1. `GDK_BACKEND=x11 orca-slicer` — if the artifact disappears, the Wayland/GL
    client path or niri's damage tracking for that output is the suspect.
@@ -255,8 +280,11 @@ it if `GDK_GL=disable` makes the artifact disappear.
 - ~~GTK 4 decision~~ — decided and applied: `gtk4.theme = null` in
   `modules/features/gtk.nix`. Active on chopper (generation 121) and confirmed
   working there.
-- **UI rendering on `eDP-1`** — triage steps recorded above; only worth chasing
-  if the artifact becomes disruptive.
+- ~~**UI rendering on `eDP-1`**~~ — closed as a hardware fault, not this
+  configuration: the artifact is pinned to a physical region of the panel and
+  depends on the colour, neither of which a compositor or GL defect produces. See
+  the section above for the evidence and, if it is ever worth confirming, the
+  test that separates the panel from the eDP cable.
 - The seed covers presets only; a future change could extend it to the printer
   configs if they ever become user-authored.
 - The sync script was later generalised: `scripts/orca-presets.sh` became
