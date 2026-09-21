@@ -1,0 +1,15 @@
+{
+    "bridge_speed": "10",
+    "from": "User",
+    "inherits": "0.20mm Standard @Kingroon KP3S PRO S1",
+    "internal_bridge_speed": "10",
+    "name": "0.20mm Standard @Kingroon KP3S PRO S1 - User",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.20mm Standard @Kingroon KP3S PRO S1 - User",
+    "version": "2.3.1.10"
+}

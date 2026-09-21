@@ -1,0 +1,13 @@
+{
+    "compatible_printers": [],
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_settings_id": [
+        "OVERTURE PETG Custom"
+    ],
+    "from": "User",
+    "inherits": "OVERTURE PETG @Snapmaker U1",
+    "name": "OVERTURE PETG Custom",
+    "version": "2.3.1.10"
+}

@@ -1,0 +1,15 @@
+{
+    "exclude_object": "1",
+    "from": "User",
+    "inherits": "0.20mm Standard @Artillery Genius",
+    "name": "0.20mm Standard @Artillery Genius - klipper",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_sequence": "by object",
+    "print_settings_id": "0.20mm Standard @Artillery Genius - klipper",
+    "version": "2.3.1.10"
+}

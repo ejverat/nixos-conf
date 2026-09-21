@@ -1,0 +1,16 @@
+{
+    "exclude_object": "1",
+    "from": "User",
+    "inherits": "0.15mm Optimal @Artillery Genius",
+    "name": "0.15mm Optimal @Artillery Genius - klipper",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_sequence": "by object",
+    "print_settings_id": "0.15mm Optimal @Artillery Genius - klipper",
+    "sparse_infill_density": "60%",
+    "version": "2.3.1.10"
+}

@@ -1,0 +1,24 @@
+{
+    "compatible_printers": [
+        "Kingroon KP3S PRO S1 0.4 nozzle"
+    ],
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_settings_id": [
+        "KINGROON PETG "
+    ],
+    "filament_vendor": [
+        "Kingroon"
+    ],
+    "from": "User",
+    "inherits": "Generic PETG @System",
+    "name": "KINGROON PETG ",
+    "nozzle_temperature": [
+        "237"
+    ],
+    "nozzle_temperature_initial_layer": [
+        "240"
+    ],
+    "version": "2.3.1.10"
+}

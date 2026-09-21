@@ -1,0 +1,32 @@
+{
+    "before_layer_change_gcode": ";BEFORE_LAYER_CHANGE\n;[layer_z]\n;G92 E0\n",
+    "from": "User",
+    "gcode_flavor": "klipper",
+    "inherits": "Artillery Genius 0.4 nozzle",
+    "machine_end_gcode": "END_PRINT",
+    "machine_max_junction_deviation": [
+        "0",
+        "0"
+    ],
+    "machine_start_gcode": "START_PRINT HOTEND=[nozzle_temperature_initial_layer] BED=[bed_temperature_initial_layer_single] RELATIVE_E_MODE=true PROBE=false",
+    "name": "Artillery Genius 0.4 nozzle - klipper",
+    "nozzle_type": [
+        "stainless_steel"
+    ],
+    "print_host": "http://192.168.1.143:7125",
+    "printable_area": [
+        "0x0",
+        "223x0",
+        "223x227",
+        "0x227"
+    ],
+    "printer_extruder_id": [
+        "1"
+    ],
+    "printer_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "printer_settings_id": "Artillery Genius 0.4 nozzle - klipper",
+    "thumbnails": "48x48/PNG, 300x300/PNG",
+    "version": "2.3.1.10"
+}

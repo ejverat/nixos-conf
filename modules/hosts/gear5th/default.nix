@@ -83,6 +83,10 @@ in {
       # Native OrcaSlicer 2.4.2 from the dedicated nixpkgs-orca pin, replacing
       # the Flatpak install that owned the print profiles.
       self.homeModules.orcaslicer
+      # Seeds the vendored print presets into the app's writable data dir, only
+      # when one is missing, and never overwrites what the GUI has edited.
+      # Repo-side changes and GUI captures go through scripts/orca-presets.sh.
+      self.homeModules.orcaslicer-presets
       # Global GTK theme, so GTK applications resolve a real theme instead of
       # silently falling back to Adwaita light. Depends on the
       # targets.genericLinux in hostModule above putting the nix profile's share

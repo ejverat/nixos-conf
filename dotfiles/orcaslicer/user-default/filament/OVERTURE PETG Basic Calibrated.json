@@ -1,0 +1,31 @@
+{
+    "compatible_printers": [],
+    "enable_pressure_advance": [
+        "1"
+    ],
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_flow_ratio": [
+        "0.96"
+    ],
+    "filament_max_volumetric_speed": [
+        "15"
+    ],
+    "filament_settings_id": [
+        "OVERTURE PETG Basic Calibrated"
+    ],
+    "from": "User",
+    "inherits": "OVERTURE PETG Basic @Kingroon KP3S PRO S1 0.4 nozzle - Klipper",
+    "name": "OVERTURE PETG Basic Calibrated",
+    "nozzle_temperature": [
+        "250"
+    ],
+    "nozzle_temperature_initial_layer": [
+        "250"
+    ],
+    "pressure_advance": [
+        "0.05"
+    ],
+    "version": "2.3.2.60"
+}
