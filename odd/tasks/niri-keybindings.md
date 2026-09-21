@@ -43,6 +43,34 @@ cooldown.
   `move-window`/`move-column`, the second is the same physical combo as the
   existing `Super+Alt+L` lock (`Mod` is `Super` on a TTY).
 
+## Hotkey overlay length (investigated after the first four commits)
+
+niri's overlay has no column, width, height, font or scroll setting. From
+`src/ui/hotkey_overlay.rs` (niri 26.04):
+
+- `// FIXME: if it doesn't fit, try splitting in two columns or something.` is an
+  open upstream FIXME, with the output-size clamp commented out next to it.
+- The constants are `FONT = "sans 14px"`, `PADDING = 8`, `LINE_INTERVAL = 2`,
+  `TITLE = "Important Hotkeys"`, so the rendered height is
+  `20n + 2(n-1) + 20 + 24 = 22n + 42` physical pixels at scale 1.
+- The dialog is centred with `(output_size - size) / 2` and clamped at `0`, so
+  when the content is taller than the output the *last* rows are the ones cut.
+- `hide-not-bound` removes nothing here: all 19 hardcoded actions are bound.
+- Row content = 19 hardcoded actions + every bind carrying a non-null
+  `hotkey-overlay-title`. `hotkey-overlay-title=null` removes a row.
+
+Row budget per output (kanshi sets both to scale 1.0):
+
+| Output | Logical height | Rows that fit |
+| --- | --- | --- |
+| `eDP-1` 1366x768 | 768 | 33 |
+| `HDMI-A-1` 1920x1080 | 1080 | 47 |
+
+The config had 46 rows (19 + 27 titles), which fits the external monitor and
+loses 13 rows on the laptop panel. Nulling the 10 `XF86*` media and brightness
+titles brings it to 36 rows (834 px), still 3 rows over on `eDP-1`; those keys
+are printed on the keyboard, so they cost nothing to hide.
+
 ## Tasks
 
 1. Branch `feat/niri-keybindings` and this document.
@@ -90,3 +118,4 @@ from the previously activated profile. The binds take effect on the next
 - [x] `feat(niri): add workspace, monitor and wheel navigation binds` (c0875d7)
 - [x] `feat(niri): wire media and brightness keys` (4e736d7)
 - [x] `feat(niri): title every spawn bind in the hotkey overlay`
+- [x] `feat(niri): drop the media keys from the hotkey overlay`

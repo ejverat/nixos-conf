@@ -59,7 +59,8 @@
 			props.hotkey-overlay-title = title;
 			content."spawn-sh" = cmd;
 		});
-		# Same, for the binds that must keep working on the lock screen.
+		# Same, for the binds that must keep working on the lock screen. A null
+		# title hides the bind from the hotkey overlay instead of titling it.
 		spawnShLocked = title: cmd: (_: {
 			props = {
 				hotkey-overlay-title = title;
@@ -267,20 +268,24 @@
           # Media keys. Audio stays on wpctl so the -l 1.4 sink cap survives;
           # the transport keys use noctalia's MPRIS service, which needs no
           # external player binary. All of them must work while locked.
-          "XF86AudioRaiseVolume" = spawnShLocked "Volume up" "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
-          "XF86AudioLowerVolume" = spawnShLocked "Volume down" "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
-          "XF86AudioMute" = spawnShLocked "Mute the output" "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-          "XF86AudioMicMute" = spawnShLocked "Mute the microphone" "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
-          "XF86AudioPlay" = spawnShLocked "Play or pause" (noctaliaIpc "media playPause");
-          "XF86AudioStop" = spawnShLocked "Stop playback" (noctaliaIpc "media stop");
-          "XF86AudioPrev" = spawnShLocked "Previous track" (noctaliaIpc "media previous");
-          "XF86AudioNext" = spawnShLocked "Next track" (noctaliaIpc "media next");
+          # A null hotkey-overlay-title keeps them out of the overlay: the keys
+          # are printed on the keyboard, and the overlay is a content-sized,
+          # unscrollable dialog (10 rows is the difference between fitting and
+          # being cut off on the 768px laptop panel).
+          "XF86AudioRaiseVolume" = spawnShLocked null "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
+          "XF86AudioLowerVolume" = spawnShLocked null "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
+          "XF86AudioMute" = spawnShLocked null "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
+          "XF86AudioMicMute" = spawnShLocked null "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
+          "XF86AudioPlay" = spawnShLocked null (noctaliaIpc "media playPause");
+          "XF86AudioStop" = spawnShLocked null (noctaliaIpc "media stop");
+          "XF86AudioPrev" = spawnShLocked null (noctaliaIpc "media previous");
+          "XF86AudioNext" = spawnShLocked null (noctaliaIpc "media next");
 
           # Brightness goes through noctalia for the on-screen display, which
           # makes brightnessctl a dependency of this config (see the packages
           # in both host layers).
-          "XF86MonBrightnessUp" = spawnShLocked "Brightness up" (noctaliaIpc "brightness increase");
-          "XF86MonBrightnessDown" = spawnShLocked "Brightness down" (noctaliaIpc "brightness decrease");
+          "XF86MonBrightnessUp" = spawnShLocked null (noctaliaIpc "brightness increase");
+          "XF86MonBrightnessDown" = spawnShLocked null (noctaliaIpc "brightness decrease");
 
           # Sizing: 5% steps on the familiar keys, 10% steps on niri's defaults.
           "Mod+Ctrl+H".set-column-width = "-5%";
