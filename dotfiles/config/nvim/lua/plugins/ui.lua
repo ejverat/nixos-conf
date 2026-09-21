@@ -60,7 +60,10 @@ return {
       },
     },
   },
-  { "echasnovski/mini.ai", version = false, event = "VeryLazy", opts = {} },
-  { "echasnovski/mini.pairs", version = false, event = "InsertEnter", opts = {} },
-  { "echasnovski/mini.icons", version = false, lazy = false, opts = {} },
+  -- Upstream moved to the nvim-mini org; the older echasnovski URLs redirect
+  -- to the same commits but lazy.nvim flags the origin mismatch, so use the
+  -- canonical ones.
+  { "nvim-mini/mini.ai", version = false, event = "VeryLazy", opts = {} },
+  { "nvim-mini/mini.pairs", version = false, event = "InsertEnter", opts = {} },
+  { "nvim-mini/mini.icons", version = false, lazy = false, opts = {} },
 }

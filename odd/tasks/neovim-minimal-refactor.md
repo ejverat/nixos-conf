@@ -257,6 +257,16 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   for C++ projects (the fixture ships a hand-written one; make-based projects
   can use `bear`/`compiledb`).
 
+- The mini.nvim modules moved to the `nvim-mini` org. `T2` wrote the older
+  `echasnovski/mini.*` URLs, which still redirect to the same commits but make
+  lazy.nvim report `Origin has changed` (three entries) and refuse to update
+  them. The specs now use `nvim-mini/mini.*`, and a cross-check of every spec
+  URL against each installed plugin's `remote.origin.url` reports no other
+  mismatch.
+- `:Lazy clean` after T3 removed 20 plugin directories (76 -> 56) including
+  LazyVim itself. The mason *data* directory (`~/.local/share/nvim/mason`) is
+  not a lazy plugin and survives; nothing references it any more.
+
 ## Test fixtures
 
 `~/Projects/cpp-smoke` (C++20: clangd, tree-sitter, textobjects, codelldb) and
