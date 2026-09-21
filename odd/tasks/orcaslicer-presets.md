@@ -155,7 +155,8 @@ generation 119, home-manager generation `6cq3qwfzk1cdn9ljmd37ww9nafhz9d1z`):
 | live vs repo | `scripts/orca-presets.sh status` reports `up to date: 56` |
 | GTK theme | `~/.config/gtk-3.0/settings.ini` and the `gtk-4.0/*` files are home-manager links, and the user confirms the theme renders correctly in the app |
 | `force` collision | no `*.bak` was left behind, and the managed `settings.ini` carries every key the replaced file had |
-| `#38` after merging `origin/main` (`33763ce`) | chopper's `environment.systemPackages` no longer lists chromium/google-chrome/slack/teams; they resolve from `home.packages` |
+| `#38` after merging `origin/main` (`33763ce`) | chopper's `environment.systemPackages` no longer lists chromium/google-chrome/slack/teams, and after the post-merge switch (generation 120, home-manager `mymyy5ws29r37m9mx6indhyrwgg9g7qx`) they resolve from the per-user profile (`/etc/profiles/per-user/ejverat/bin`) |
+| seed after the post-merge switch | `Activating orcaPresetSeed` with no output: idempotent on a host that already has the 56 files |
 | merge build | `nix build .#nixosConfigurations.chopper.config.system.build.toplevel --no-link` and `.#homeConfigurations.gear5th.activationPackage` both succeed |
 
 ### Open: partial UI rendering on the internal panel
@@ -190,24 +191,38 @@ Three things worth knowing about the second host:
    `backupFileExtension = "bak"` would **not** leave a copy. *(Resolved at the
    first switch: no backup was needed and no key was lost — the module carries
    the old file's custom keys verbatim.)*
-3. **GTK 4 theme: decision pending, recommendation `gtk.gtk4.theme = null`.**
-   chopper's `home.stateVersion` is `25.11`, older than the release that changed
-   the default, so home-manager keeps the legacy behaviour (GTK 4 inherits
-   `gtk.theme`) and warns. What each option actually does:
+3. **GTK 4 theme: decided — `gtk4.theme = null`, pinned in
+   `modules/features/gtk.nix`.** chopper's `home.stateVersion` is `25.11`, older
+   than the release that changed the default, so home-manager kept the legacy
+   behaviour (GTK 4 inherits `gtk.theme`) and warned. The two options:
 
    | Option | Effect |
    | --- | --- |
    | `gtk.gtk4.theme = config.gtk.theme` (legacy) | keeps writing a GTK 4 `gtk.css`/`settings.ini` that names Nordic. libadwaita applications ignore a named theme and only recolor from Adwaita, so this path mostly yields half-applied theming, and it is the deprecated behaviour. |
-   | `gtk.gtk4.theme = null` (new default) | stops overriding the GTK 4 theme, so those apps use their own dark/light preference, which `gtk.colorScheme = "dark"` already sets. Silences the warning and matches gear5th (`26.11`). |
+   | `gtk.gtk4.theme = null` (new default, chosen) | stops overriding the GTK 4 theme, so those apps use their own dark/light preference, which `gtk.colorScheme = "dark"` already sets. Silences the warning and matches gear5th (`26.11`). |
 
-   Evidence for the recommendation: **this configuration installs no GTK 4 or
+   Evidence behind the choice: **this configuration installs no GTK 4 or
    libadwaita software at all** — no `gtk4`/`libadwaita` dependency in
    `/run/current-system/sw`, in `~/.nix-profile`, or in any `modules/*.nix`. Every
    GUI application here is GTK 3 (OrcaSlicer, GIMP), Electron/CEF (chromium,
    google-chrome, slack, teams), VCL (libreoffice), or owns its renderer
-   (wezterm). So the option has no visible effect today, and taking `null`
-   removes a deprecated path and the warning at no cost while `gtk.colorScheme`
-   stays as the correct mechanism for the day a GTK 4 app arrives.
+   (wezterm). The option therefore had no visible effect either way, and taking
+   `null` removes a deprecated path and the warning at no cost.
+
+   Observed effect of the change, by evaluation of both hosts:
+
+   | Surface | Before | After |
+   | --- | --- | --- |
+   | GTK 4 theme file | `gtk-4.0/gtk.css` + `settings.ini` naming Nordic | `gtk.css` gone; `settings.ini` keeps `gtk-application-prefer-dark-theme=true`, `gtk-interface-color-scheme=2`, font, cursor and icon theme |
+   | GTK 3 | unchanged | unchanged: `gtk-theme-name=Nordic-bluish-accent-standard-buttons` and the preserved extra keys |
+   | home-manager warning | emitted for chopper | gone from `nix eval` output for both hosts |
+   | gear5th | already `null` (26.11 emits no warning) | unchanged |
+
+   And on the host, after the switch (generation 121, home-manager
+   `v727milr4brnazrjhk9wkw0w2vgzpf9v`, 2026-09-21 00:35): the `gtk-4.0/gtk.css`
+   symlink was removed as an orphan, only `settings.ini` remains, the
+   home-manager warning is gone, GTK 3 still resolves Nordic, and the user
+   confirms everything keeps working.
 
 ## NVIDIA on chopper
 
@@ -237,8 +252,9 @@ it if `GDK_GL=disable` makes the artifact disappear.
 - ~~Onboard chopper~~ — done: `nixosModules.orcaslicer`, `homeModules.gtk` and
   `homeModules.orcaslicer-presets` are registered, activated and verified on the
   host (see "Chopper onboarding").
-- **GTK 4 decision** — confirm `gtk.gtk4.theme = null` (recommended) or pin the
-  legacy value; one line in chopper's configuration.
+- ~~GTK 4 decision~~ — decided and applied: `gtk4.theme = null` in
+  `modules/features/gtk.nix`. Active on chopper (generation 121) and confirmed
+  working there.
 - **UI rendering on `eDP-1`** — triage steps recorded above; only worth chasing
   if the artifact becomes disruptive.
 - The seed covers presets only; a future change could extend it to the printer

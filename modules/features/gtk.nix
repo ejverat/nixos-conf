@@ -52,6 +52,16 @@
       };
       colorScheme = "dark";
 
+      # Do not theme GTK 4 by name. Home Manager's default here depends on
+      # `home.stateVersion`: a host older than 26.05 keeps the legacy behaviour
+      # (GTK 4 inherits `gtk.theme`) and warns, while a newer host already gets
+      # `null`. Pinning `null` here makes this module's contract independent of
+      # each host's stateVersion, and it is the honest behaviour anyway:
+      # libadwaita applications ignore a named theme and only recolour from
+      # Adwaita, so the legacy path produced half-applied theming. Dark/light
+      # for GTK 4 keeps coming from `colorScheme` above.
+      gtk4.theme = null;
+
       # The hand-written settings.ini carried preferences the module does not
       # model. Keep them verbatim so taking the file over loses nothing.
       gtk3.extraConfig = {
