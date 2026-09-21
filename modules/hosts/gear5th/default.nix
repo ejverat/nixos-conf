@@ -32,6 +32,19 @@
     # Exposes the `home-manager` CLI in the nix profile after the first
     # activation, so later switches are `home-manager switch --flake .#gear5th`.
     programs.home-manager.enable = true;
+
+    # Non-NixOS hosts get none of the XDG plumbing a NixOS system profile
+    # provides. This is what puts `$HOME/.nix-profile/share` (and the default
+    # nix profile) into XDG_DATA_DIRS, which is where GTK looks for
+    # `themes/<name>` and where desktop launchers look for applications. It is
+    # a hard prerequisite for `flake.homeModules.gtk` and for Nix `.desktop`
+    # entries to be visible at all, and it is also what makes the profiles'
+    # share dirs reach systemd user services via sessionVariables.
+    #
+    # It only wires `hm-session-vars.sh` into bash; the portable zsh wrapper
+    # sources it as well, because zsh is this host's login shell and starts the
+    # niri session.
+    targets.genericLinux.enable = true;
   };
 in {
   flake.homeConfigurations.gear5th = inputs.home-manager.lib.homeManagerConfiguration {
@@ -70,6 +83,11 @@ in {
       # Native OrcaSlicer 2.4.2 from the dedicated nixpkgs-orca pin, replacing
       # the Flatpak install that owned the print profiles.
       self.homeModules.orcaslicer
+      # Global GTK theme, so GTK applications resolve a real theme instead of
+      # silently falling back to Adwaita light. Depends on the
+      # targets.genericLinux in hostModule above putting the nix profile's share
+      # dir into XDG_DATA_DIRS.
+      self.homeModules.gtk
       hostModule
     ];
   };
