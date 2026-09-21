@@ -6,6 +6,9 @@
 			enable = true;
 			package = self.packages.${pkgs.stdenv.hostPlatform.system}.myNiri;
 		};
+		# noctalia's BrightnessService shells out to brightnessctl for the
+		# internal panel, and the XF86MonBrightness binds go through noctalia.
+		environment.systemPackages = [ pkgs.brightnessctl ];
 	};
 
 	# Portable user layer (non-NixOS hosts): install the same config-baked niri
@@ -22,6 +25,9 @@
 			# explicitly or X11 apps (wezterm with enable_wayland=false)
 			# silently get no Xwayland.
 			pkgs.xwayland
+			# noctalia's BrightnessService shells out to brightnessctl for the
+			# internal panel, and the XF86MonBrightness binds go through noctalia.
+			pkgs.brightnessctl
 			# GL drivers for the /run/opengl-driver tree that nixpkgs' libgbm
 			# and libglvnd look for (scripts/fix-opengl-driver.sh points the
 			# tree here). On NixOS this comes from the system profile; in the
@@ -43,6 +49,27 @@
 	perSystem = { config, pkgs, lib, self', ... }: 
 	let
 		noctaliaCmd = lib.getExe self'.packages.myNoctalia;
+		# Every panel, launcher and OSD lives behind noctalia's IPC, so the binds
+		# below stay one line each and share the exact same executable path.
+		noctaliaIpc = call: "${noctaliaCmd} ipc call ${call}";
+		# niri's hotkey overlay prints the raw command of a spawn bind, and every
+		# command here is an absolute store path. spawnSh attaches the title the
+		# overlay should show instead of the path; a null title keeps the bind out
+		# of the overlay, which is a content-sized dialog with no scroll and no
+		# room for every bind on the 768px laptop panel.
+		spawnSh = title: cmd: (_: {
+			props.hotkey-overlay-title = title;
+			content."spawn-sh" = cmd;
+		});
+		# Same, for the binds that must keep working on the lock screen. A null
+		# title hides the bind from the hotkey overlay instead of titling it.
+		spawnShLocked = title: cmd: (_: {
+			props = {
+				hotkey-overlay-title = title;
+				allow-when-locked = true;
+			};
+			content."spawn-sh" = cmd;
+		});
 		terminalCmd = lib.getExe pkgs.wezterm;
 	in
 	{
@@ -105,17 +132,69 @@
         };
 
         binds = {
+          # Shell: launcher, panels and the on-screen displays.
           "Mod+Shift+Slash".show-hotkey-overlay = (_: {});
-          "Mod+D".spawn-sh = "${noctaliaCmd} ipc call launcher toggle";
-          "Super+Alt+L".spawn-sh = "${noctaliaCmd} ipc call lockScreen lock";
-          "Mod+Shift+X".spawn-sh = "${noctaliaCmd} ipc call sessionMenu toggle";
+          "Mod+D" = spawnSh "Run an application" (noctaliaIpc "launcher toggle");
+          "Mod+B" = spawnSh "Clipboard history" (noctaliaIpc "launcher clipboard");
+          "Mod+A" = spawnSh "Control center" (noctaliaIpc "controlCenter toggle");
+          "Mod+N" = spawnSh "Notification history" (noctaliaIpc "notifications toggleHistory");
+          "Mod+Shift+N" = spawnSh "Toggle do not disturb" (noctaliaIpc "notifications toggleDND");
+          "Mod+Shift+B" = spawnSh "Toggle the bar" (noctaliaIpc "bar toggle");
+          "Mod+Shift+D" = spawnSh "Toggle dark mode" (noctaliaIpc "darkMode toggle");
+          "Mod+Shift+T" = spawnSh "Toggle the idle inhibitor" (noctaliaIpc "idleInhibitor toggle");
+          "Mod+Shift+M" = spawnSh "Media player panel" (noctaliaIpc "media toggle");
+          # These three panels stay out of the hotkey overlay (null title): the
+          # control center on Mod+A already exposes bluetooth, network and the
+          # calendar, and the overlay has no room for them on the 768px panel.
+          "Mod+Alt+B" = spawnSh null (noctaliaIpc "bluetooth togglePanel");
+          "Mod+Alt+N" = spawnSh null (noctaliaIpc "network togglePanel");
+          "Mod+Alt+C" = spawnSh null (noctaliaIpc "calendar toggle");
 
-          "Mod+Return".spawn-sh = terminalCmd;
+          # Session: lock, log out, monitors and the shortcut inhibitor.
+          "Super+Alt+L" = spawnSh "Lock the screen" (noctaliaIpc "lockScreen lock");
+          "Mod+Shift+X" = spawnSh "Session menu" (noctaliaIpc "sessionMenu toggle");
+          "Mod+Shift+E".quit = (_: {});
+          "Ctrl+Alt+Delete".quit = (_: {});
+          "Mod+Shift+P".power-off-monitors = (_: {});
+          "Mod+Escape" = _: {
+            # Keep working while a client inhibits shortcuts (games, VMs).
+            props.allow-inhibiting = false;
+            content.toggle-keyboard-shortcuts-inhibit = (_: {});
+          };
+
+          # Capture: niri's region UI plus noctalia's screen toolkit.
+          "Print".screenshot = (_: {});
+          "Ctrl+Print".screenshot-screen = (_: {});
+          "Alt+Print".screenshot-window = (_: {});
+          "Mod+Shift+S" = spawnSh "Screenshot and annotation tools" (noctaliaIpc "plugin:screen-toolkit toggle");
+
+          # Accessibility: screen reader, usable from the lock screen.
+          "Super+Alt+S" = spawnShLocked "Toggle the screen reader: orca" "pkill orca || exec orca";
+
+          "Mod+Return" = spawnSh "Open a terminal: wezterm" terminalCmd;
+
+          # Windows: sizing, tiling and floating.
           "Mod+Q".close-window = {};
           "Mod+F".maximize-column = {};
+          "Mod+M".maximize-window-to-edges = {};
+          "Mod+Ctrl+F".expand-column-to-available-width = {};
           "Mod+G".fullscreen-window = {};
-          "Mod+Shift+F".toggle-window-floating = {};
+          "Mod+Shift+G".toggle-windowed-fullscreen = {};
           "Mod+C".center-column = {};
+          "Mod+Ctrl+C".center-visible-columns = {};
+          "Mod+W".toggle-column-tabbed-display = {};
+
+          # Floating: Mod+V is niri's default, Mod+Shift+F stays as the
+          # previous alias so the old muscle memory keeps working.
+          "Mod+V".toggle-window-floating = {};
+          "Mod+Shift+F".toggle-window-floating = {};
+          "Mod+Shift+V".switch-focus-between-floating-and-tiling = {};
+
+          # Column surgery: consume a window into the column, expel it out.
+          "Mod+BracketLeft".consume-or-expel-window-left = {};
+          "Mod+BracketRight".consume-or-expel-window-right = {};
+          "Mod+Comma".consume-window-into-column = {};
+          "Mod+Period".expel-window-from-column = {};
 
           "Mod+H".focus-column-left = {};
           "Mod+L".focus-column-right = {};
@@ -131,6 +210,11 @@
           "Mod+Shift+L".move-column-right = {};
           "Mod+Shift+K".move-window-up = {};
           "Mod+Shift+J".move-window-down = {};
+
+          "Mod+Home".focus-column-first = {};
+          "Mod+End".focus-column-last = {};
+          "Mod+Ctrl+Home".move-column-to-first = {};
+          "Mod+Ctrl+End".move-column-to-last = {};
 
           "Mod+1".focus-workspace = "w0";
           "Mod+2".focus-workspace = "w1";
@@ -154,19 +238,92 @@
           "Mod+Shift+9".move-column-to-workspace = "w8";
           "Mod+Shift+0".move-column-to-workspace = "w9";
 
-# "Mod+V".spawn-sh = ''${config.pkgs.alsa-utils}/bin/amixer sset Capture toggle'';
-          "XF86AudioRaiseVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
-          "XF86AudioLowerVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
+          # Workspaces beyond the number keys: the wheel used to be the only
+          # way to change workspace, and nothing could move a column there.
+          "Mod+Tab".focus-workspace-previous = (_: {});
+          "Mod+Grave".focus-window-previous = (_: {});
+          "Mod+Ctrl+U".move-column-to-workspace-down = (_: {});
+          "Mod+Ctrl+I".move-column-to-workspace-up = (_: {});
+          "Mod+Shift+U".move-workspace-down = (_: {});
+          "Mod+Shift+I".move-workspace-up = (_: {});
+          "Mod+Ctrl+Shift+U".move-window-to-workspace-down = (_: {});
+          "Mod+Ctrl+Shift+I".move-window-to-workspace-up = (_: {});
 
+          # Overview: the zoomed-out workspace view, also reachable from the
+          # touchpad gesture and the top-left hot corner.
+          "Mod+O" = _: {
+            props.repeat = false;
+            content.toggle-overview = (_: {});
+          };
+
+          # Monitors. kanshi drives the two-output profiles, so these need
+          # explicit keys; Mod+Shift+HLJK and Mod+Alt+L are already taken by
+          # move-window and the lock screen.
+          "Mod+Alt+Left".focus-monitor-left = (_: {});
+          "Mod+Alt+Right".focus-monitor-right = (_: {});
+          "Mod+Alt+Up".focus-monitor-up = (_: {});
+          "Mod+Alt+Down".focus-monitor-down = (_: {});
+          "Mod+Alt+Shift+Left".move-column-to-monitor-left = (_: {});
+          "Mod+Alt+Shift+Right".move-column-to-monitor-right = (_: {});
+          "Mod+Alt+Shift+Up".move-column-to-monitor-up = (_: {});
+          "Mod+Alt+Shift+Down".move-column-to-monitor-down = (_: {});
+          "Mod+Alt+Comma".move-workspace-to-monitor-previous = (_: {});
+          "Mod+Alt+Period".move-workspace-to-monitor-next = (_: {});
+
+          # Media keys. Audio stays on wpctl so the -l 1.4 sink cap survives;
+          # the transport keys use noctalia's MPRIS service, which needs no
+          # external player binary. All of them must work while locked.
+          # A null hotkey-overlay-title keeps them out of the overlay: the keys
+          # are printed on the keyboard, and the overlay is a content-sized,
+          # unscrollable dialog (10 rows is the difference between fitting and
+          # being cut off on the 768px laptop panel).
+          "XF86AudioRaiseVolume" = spawnShLocked null "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
+          "XF86AudioLowerVolume" = spawnShLocked null "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
+          "XF86AudioMute" = spawnShLocked null "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
+          "XF86AudioMicMute" = spawnShLocked null "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
+          "XF86AudioPlay" = spawnShLocked null (noctaliaIpc "media playPause");
+          "XF86AudioStop" = spawnShLocked null (noctaliaIpc "media stop");
+          "XF86AudioPrev" = spawnShLocked null (noctaliaIpc "media previous");
+          "XF86AudioNext" = spawnShLocked null (noctaliaIpc "media next");
+
+          # Brightness goes through noctalia for the on-screen display, which
+          # makes brightnessctl a dependency of this config (see the packages
+          # in both host layers).
+          "XF86MonBrightnessUp" = spawnShLocked null (noctaliaIpc "brightness increase");
+          "XF86MonBrightnessDown" = spawnShLocked null (noctaliaIpc "brightness decrease");
+
+          # Sizing: 5% steps on the familiar keys, 10% steps on niri's defaults.
           "Mod+Ctrl+H".set-column-width = "-5%";
           "Mod+Ctrl+L".set-column-width = "+5%";
           "Mod+Ctrl+J".set-window-height = "-5%";
           "Mod+Ctrl+K".set-window-height = "+5%";
+          "Mod+Minus".set-column-width = "-10%";
+          "Mod+Equal".set-column-width = "+10%";
+          "Mod+Shift+Minus".set-window-height = "-10%";
+          "Mod+Shift+Equal".set-window-height = "+10%";
+          "Mod+R".switch-preset-column-width = {};
+          "Mod+Shift+R".switch-preset-column-width-back = {};
+          "Mod+Ctrl+Shift+R".switch-preset-window-height = {};
+          "Mod+Ctrl+R".reset-window-height = {};
 
-          "Mod+WheelScrollDown".focus-column-left = {};
-          "Mod+WheelScrollUp".focus-column-right = {};
-          "Mod+Ctrl+WheelScrollDown".focus-workspace-down = {};
-          "Mod+Ctrl+WheelScrollUp".focus-workspace-up = {};
+          # Wheel: niri's default cooldown keeps one fast scroll from
+          # jumping several columns or workspaces.
+          "Mod+WheelScrollDown" = _: {
+            props.cooldown-ms = 150;
+            content.focus-column-left = (_: {});
+          };
+          "Mod+WheelScrollUp" = _: {
+            props.cooldown-ms = 150;
+            content.focus-column-right = (_: {});
+          };
+          "Mod+Ctrl+WheelScrollDown" = _: {
+            props.cooldown-ms = 150;
+            content.focus-workspace-down = (_: {});
+          };
+          "Mod+Ctrl+WheelScrollUp" = _: {
+            props.cooldown-ms = 150;
+            content.focus-workspace-up = (_: {});
+          };
         };
 
         xwayland-satellite.path = lib.getExe pkgs.xwayland-satellite;
