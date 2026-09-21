@@ -20,7 +20,7 @@
   };
 
   perSystem = { pkgs, lib, ... }: let
-    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd pkgs.ripgrep pkgs.fzf pkgs.imagemagick pkgs.ueberzugpp ]; # fd+ripgrep+fzf: picker (fzf-lua); imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
+    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd pkgs.ripgrep pkgs.fzf pkgs.cmake pkgs.imagemagick pkgs.ueberzugpp ]; # fd+ripgrep+fzf: picker (fzf-lua); cmake: cmake-tools.nvim and compile_commands.json generation; imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;
     neovimModule = { config, lib, wlib, ... }: {
       imports = [ wlib.wrapperModules.neovim ];

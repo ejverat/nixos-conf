@@ -12,14 +12,28 @@ return {
       {
         "<leader>ch",
         function()
-          require("clangd_extensions")
-          -- The request goes to an attached clangd client, so a cold buffer
-          -- right after opening fails silently instead of switching.
           if #vim.lsp.get_clients({ bufnr = 0, name = "clangd" }) == 0 then
             vim.notify("clangd is not attached to this buffer yet", vim.log.levels.WARN)
             return
           end
-          vim.cmd("ClangdSwitchSourceHeader")
+          -- Same request as :ClangdSwitchSourceHeader, with the two failure
+          -- modes spelled out: clangd answers null when it cannot work out the
+          -- counterpart, which for header -> source means the project has no
+          -- index yet (a compile_commands.json enables --background-index).
+          vim.lsp.buf_request(0, "textDocument/switchSourceHeader", {
+            uri = vim.uri_from_bufnr(0),
+          }, function(err, result)
+            if err then
+              vim.notify("switch source/header: " .. (err.message or "request failed"), vim.log.levels.ERROR)
+            elseif not result then
+              vim.notify(
+                "clangd could not determine the corresponding file; header -> source needs an index (add compile_commands.json to the project)",
+                vim.log.levels.WARN
+              )
+            else
+              vim.cmd.edit(vim.fn.fnameescape(vim.uri_to_fname(result)))
+            end
+          end)
         end,
         desc = "Switch source/header",
       },

@@ -210,9 +210,22 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
 - The installed `clangd_extensions.nvim` has no inlay-hint feature at all, so
   the `inlay_hints` opts this config carried were dead; hints come from
   `vim.lsp.inlay_hint`. `<leader>ch` works now (the spec loads on `ft`/`keys`).
-- `refactoring.lua` referenced an undefined global `pick` and declared
-  `<leader>rf`/`<leader>rp` twice; it now uses `select_refactor()` with one
-  binding per action.
+- `<leader>ch` was rewritten instead of relying on `:ClangdSwitchSourceHeader`.
+  `textDocument/switchSourceHeader` is asymmetric: **source -> header** follows
+  the `#include` graph and works with no index, while **header -> source** needs
+  clangd's index (a header cannot know which translation units include it).
+  Without `compile_commands.json` the background index has nothing to index, so
+  clangd only knows the buffers opened in the session -- which is why the switch
+  appeared to work only when both files were open, and otherwise answered null
+  ("Corresponding file cannot be determined"). Measured on the fixture with a
+  direct LSP request: source -> header resolves in both cases;
+  header -> source resolves with `compile_commands.json` and returns null
+  without it. The keymap now reports each failure mode explicitly (no clangd
+  client attached / no counterpart found, with the index hint).
+- `pkgs.cmake` joined `neovimExtraPkgs`: `cmake-tools.nvim` was configured but
+  could never run, and CMake is also how `compile_commands.json` gets generated
+  for C++ projects (the fixture ships a hand-written one; make-based projects
+  can use `bear`/`compiledb`).
 
 ## Test fixture
 
@@ -271,3 +284,11 @@ manual smoke tests: `compile_flags.txt` for clangd, `CMakeLists.txt` for later,
   `vim.treesitter.highlighter.active` in both cases, which is why "no error"
   was not evidence of working highlighting. Lua is unaffected: 334 captures and
   a clean `vim.treesitter.start`.
+- T2 runtime (header switch): `~/Projects/cpp-smoke` now ships
+  `compile_commands.json`. Direct `textDocument/switchSourceHeader` requests
+  from a single open buffer: `src/greeter.cpp` -> `include/greeter.h` resolves
+  with and without the index file; `include/greeter.h` -> `src/greeter.cpp`
+  resolves with the index file and returns null without it. End-to-end through
+  the keymap (`:normal ,ch`) with only `src/greeter.cpp` open: buffer switched to
+  `include/greeter.h`; without the index file, from the header, the notification
+  explains the missing index instead of failing silently.
