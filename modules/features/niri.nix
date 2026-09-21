@@ -6,6 +6,9 @@
 			enable = true;
 			package = self.packages.${pkgs.stdenv.hostPlatform.system}.myNiri;
 		};
+		# noctalia's BrightnessService shells out to brightnessctl for the
+		# internal panel, and the XF86MonBrightness binds go through noctalia.
+		environment.systemPackages = [ pkgs.brightnessctl ];
 	};
 
 	# Portable user layer (non-NixOS hosts): install the same config-baked niri
@@ -22,6 +25,9 @@
 			# explicitly or X11 apps (wezterm with enable_wayland=false)
 			# silently get no Xwayland.
 			pkgs.xwayland
+			# noctalia's BrightnessService shells out to brightnessctl for the
+			# internal panel, and the XF86MonBrightness binds go through noctalia.
+			pkgs.brightnessctl
 			# GL drivers for the /run/opengl-driver tree that nixpkgs' libgbm
 			# and libglvnd look for (scripts/fix-opengl-driver.sh points the
 			# tree here). On NixOS this comes from the system profile; in the
@@ -246,10 +252,53 @@
           "Mod+Alt+Comma".move-workspace-to-monitor-previous = (_: {});
           "Mod+Alt+Period".move-workspace-to-monitor-next = (_: {});
 
-# The push-to-talk bind that used to live here is gone: Mod+V is niri's
-          # toggle-window-floating, and the microphone mute has no key yet.
-          "XF86AudioRaiseVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
-          "XF86AudioLowerVolume".spawn-sh = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
+          # Media keys. Audio stays on wpctl so the -l 1.4 sink cap survives;
+          # the transport keys use noctalia's MPRIS service, which needs no
+          # external player binary. All of them must work while locked.
+          "XF86AudioRaiseVolume" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
+          };
+          "XF86AudioLowerVolume" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
+          };
+          "XF86AudioMute" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
+          };
+          "XF86AudioMicMute" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
+          };
+          "XF86AudioPlay" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = noctaliaIpc "media playPause";
+          };
+          "XF86AudioStop" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = noctaliaIpc "media stop";
+          };
+          "XF86AudioPrev" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = noctaliaIpc "media previous";
+          };
+          "XF86AudioNext" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = noctaliaIpc "media next";
+          };
+
+          # Brightness goes through noctalia for the on-screen display, which
+          # makes brightnessctl a dependency of this config (see the packages
+          # in both host layers).
+          "XF86MonBrightnessUp" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = noctaliaIpc "brightness increase";
+          };
+          "XF86MonBrightnessDown" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = noctaliaIpc "brightness decrease";
+          };
 
           # Sizing: 5% steps on the familiar keys, 10% steps on niri's defaults.
           "Mod+Ctrl+H".set-column-width = "-5%";
