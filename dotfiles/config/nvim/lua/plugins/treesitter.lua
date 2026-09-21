@@ -9,16 +9,27 @@ return {
     lazy = false,
     build = ":TSUpdate",
     config = function()
-      -- The Unreal suite installs patched parsers (cpp, c, ushader, verse) into
-      -- stdpath("data")/site, and USX.nvim ships after/queries/cpp queries that
-      -- use their extra node types (unreal_body_macro). The Nix wrapper's stock
-      -- grammars are earlier on the runtimepath, so without this prepend the cpp
-      -- highlights query cannot be built: the highlighter either fails loudly
-      -- (vim.treesitter.start) or, worse, vim.treesitter.query.get returns nil
-      -- and the buffer silently loses highlighting.
+      -- Two runtimepath details decide how cpp is highlighted:
+      --
+      -- 1. Parsers: the Unreal suite installs patched grammars (cpp, c, ushader,
+      --    verse) into stdpath("data")/site/parser, and USX.nvim ships
+      --    after/queries/cpp queries using their extra node types
+      --    (unreal_body_macro). The Nix wrapper's stock grammars are earlier on
+      --    the runtimepath, so site must be prepended or the cpp highlights
+      --    query cannot be built at all.
+      -- 2. Queries: the Unreal stack also drops its fork of the cpp/c queries
+      --    into stdpath("data")/site/queries, and that fork has no
+      --    `; inherits: c` line -- which is exactly where cpp keywords, types
+      --    and preprocessor captures come from. nvim-treesitter keeps the
+      --    upstream set under <plugin>/runtime/queries, so exposing that
+      --    directory restores them while the Unreal patterns stay in the merge.
       local site = vim.fn.stdpath("data") .. "/site"
       if vim.uv.fs_stat(site .. "/parser") then
         vim.opt.rtp:prepend(site)
+      end
+      local ts = require("lazy.core.config").plugins["nvim-treesitter"]
+      if ts and vim.uv.fs_stat(ts.dir .. "/runtime/queries") then
+        vim.opt.rtp:prepend(ts.dir .. "/runtime")
       end
 
       vim.api.nvim_create_autocmd("FileType", {

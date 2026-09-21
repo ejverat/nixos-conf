@@ -9,7 +9,20 @@ return {
     "p00f/clangd_extensions.nvim",
     ft = { "c", "cpp", "objc", "objcpp" },
     keys = {
-      { "<leader>ch", "<cmd>ClangdSwitchSourceHeader<cr>", desc = "Switch source/header" },
+      {
+        "<leader>ch",
+        function()
+          require("clangd_extensions")
+          -- The request goes to an attached clangd client, so a cold buffer
+          -- right after opening fails silently instead of switching.
+          if #vim.lsp.get_clients({ bufnr = 0, name = "clangd" }) == 0 then
+            vim.notify("clangd is not attached to this buffer yet", vim.log.levels.WARN)
+            return
+          end
+          vim.cmd("ClangdSwitchSourceHeader")
+        end,
+        desc = "Switch source/header",
+      },
       { "<leader>cA", "<cmd>ClangdAST<cr>", desc = "Show AST" },
     },
     opts = {

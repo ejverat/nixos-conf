@@ -184,8 +184,9 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   `neovim/nvim-lspconfig`; the rule is documented at the top of `lsp.lua`.
   `opts` functions do merge across specs (verified with the nvim-dap codelldb
   adapter from `clangd.lua`), only `config` is last-wins.
-- **cpp tree-sitter highlighting was silently dead before this feature.**
-  `USX.nvim` ships `after/queries/cpp/highlights.scm` using Unreal node types
+- **cpp tree-sitter highlighting was silently dead before this feature, and
+  stayed half-dead after the parser fix.** `USX.nvim` ships
+  `after/queries/cpp/highlights.scm` using Unreal node types
   (`unreal_body_macro`) that only exist in the Unreal-patched parsers installed
   under `~/.local/share/nvim/site/parser` (cpp, c, ushader, verse). The Nix
   wrapper's stock grammars were earlier on the runtimepath, so
@@ -193,9 +194,16 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   `LazyVim.treesitter.have(ft, "highlights")` guard skipped
   `vim.treesitter.start` for cpp entirely: no error, no highlighting. The new
   unconditional `pcall(vim.treesitter.start)` exposed it as a hard error
-  (surfaced by fzf-lua previews). `treesitter.lua` now prepends
-  `stdpath("data")/site` when it exists, so the Unreal parsers win; the stock
-  grammars still cover every other language.
+  (surfaced by fzf-lua previews).
+  Two runtimepath prepends are needed, in `treesitter.lua`:
+  1. `stdpath("data")/site` so the Unreal parsers win over the wrapper's stock
+     grammars (otherwise the query cannot be built at all);
+  2. `<nvim-treesitter>/runtime` because the Unreal stack also installs its own
+     fork of the `cpp`/`c` queries into `site/queries`, and that fork **has no
+     `; inherits: c` line** -- which is where cpp keywords, types and
+     preprocessor captures come from. Only then does the merged query produce
+     captures; before that the highlighter attached and painted nothing, so cpp
+     looked like it had "partial" highlighting from LSP semantic tokens alone.
 - `vim.o` rejects dict/array values and string methods: `fillchars`,
   `listchars` and `sessionoptions` need `vim.opt`, and `shortmess:append` needs
   `vim.opt.shortmess`. Both bugs were caught by the sandbox smoke test.
@@ -252,3 +260,14 @@ manual smoke tests: `compile_flags.txt` for clangd, `CMakeLists.txt` for later,
   End-to-end attach check with the wrapper PATH on `~/Projects/cpp-smoke`:
   `clients=1`, `clangd root=/home/ejverat/Projects/cpp-smoke`, zero diagnostics,
   `vim.lsp.buf.hover` callable.
+- T2 runtime (highlighting): both defects above were found by measuring captures
+  instead of trusting the absence of errors. Same-methodology comparison on
+  `~/Projects/cpp-smoke/src/main.cpp` with the parsed tree as the source: the
+  query built from the Unreal fork files alone (`site/queries/cpp` + USX)
+  yields **0 captures**, while the merged query after the fix yields **135**
+  (`#include` -> `keyword.import`, `static` -> `keyword.modifier`, `int` ->
+  `type.builtin`, `return` -> `keyword.return`, `Greeter` -> `type`, `std::` ->
+  `module`). `ts_highlight = true` and the highlighter is in
+  `vim.treesitter.highlighter.active` in both cases, which is why "no error"
+  was not evidence of working highlighting. Lua is unaffected: 334 captures and
+  a clean `vim.treesitter.start`.
