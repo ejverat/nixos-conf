@@ -8,6 +8,10 @@ return {
     event = { "InsertEnter", "CmdlineEnter" },
     version = false,
     dependencies = { "rafamadriz/friendly-snippets" },
+    -- The Rust fuzzy matcher lives in target/release, which is gitignored
+    -- upstream, so a fresh clone needs this build (cargo is on the wrapper
+    -- PATH). Without it blink falls back to the Lua matcher and warns.
+    build = "cargo build --release",
     opts = {
       keymap = {
         preset = "default",

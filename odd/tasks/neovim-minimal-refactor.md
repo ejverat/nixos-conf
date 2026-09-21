@@ -161,9 +161,24 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       removing the `using` reproduces it and restoring it clears the buffer to
       zero diagnostics, which proves OmniSharp diagnostics reach
       `vim.diagnostic`.
-- [ ] T4 Completion and snippets: blink only, friendly-snippets wired through
-      blink's own source (plus `lazydev` integration for `lua`). Evidence:
-      completion on lua/c/cpp/ts, snippet expansion, lazydev modules resolved.
+- [x] T4 Completion and snippets. Done 2026-09-21: blink.cmp is the only
+      engine (LuaSnip is gone from the spec set and from disk; the only mention
+      left is a comment), friendly-snippets reaches it through blink's own
+      `snippets` source with `preset = "default"` (the `vim.snippet` engine),
+      and the `lazydev` provider is wired for `lua` via
+      `sources.per_filetype.lua`. Added `build = "cargo build --release"`:
+      blink's Rust matcher lives in `target/release`, which is gitignored
+      upstream, so a fresh clone would silently fall back to the Lua matcher.
+      Evidence: `blink.cmp.fuzzy.rust` loads (Rust matcher, not the fallback);
+      providers are `buffer,cmdline,lazydev,lsp,omni,path,snippets` with
+      defaults `lsp,path,snippets,buffer` and `per_filetype.lua = { lazydev }`;
+      `lazydev.integrations.blink` loads; the runtimepath exposes 143
+      friendly-snippets JSON files (57 at the top level, the rest nested per
+      filetype, e.g. `snippets/lua/`); expanding a real friendly-snippets body
+      through `vim.snippet` produces the expected text and placeholder jumps
+      work; `:messages` is clean. The interactive menu itself (type a prefix in
+      insert mode, `<C-y>` to accept, `<C-l>`/`<C-h>` to move between snippet
+      placeholders, `<C-n>`/`<C-p>` to pick) is the user-facing check.
 - [ ] T5 Deferred loading for the heavy stacks: `dap` (cmd/keys),
       `image.nvim` + `molten` (`ft = python`), Unreal suite (`ft = {c,cpp}`,
       `cmd = UDEV`), `cmake-tools` (`ft = cmake`), `platformio` (keep `cond`),
