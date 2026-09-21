@@ -30,20 +30,6 @@ return {
       },
     },
   },
-  -- nvim-cmp (autocompletado)
-  {
-    "hrsh7th/nvim-cmp",
-    event = "InsertEnter",
-    dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
-      "hrsh7th/cmp-buffer",
-      "hrsh7th/cmp-path",
-      "L3MON4D3/LuaSnip",
-    },
-    opts = function(_, opts)
-      table.insert(opts.sorting.comparators, 1, require("clangd_extensions.cmp_scores"))
-    end,
-  },
   -- config lspconfig
   {
     "neovim/nvim-lspconfig",
