@@ -2,6 +2,12 @@
 -- definitions under lsp/ that vim.lsp.config discovers on the runtimepath, so
 -- there is no require("lspconfig") and no legacy *.setup() call any more.
 --
+-- IMPORTANT: this file is the ONLY owner of the `neovim/nvim-lspconfig` spec.
+-- lazy.nvim merges duplicate plugin specs and the last `config` wins, so a
+-- second spec with a `config` (or `opts`) function would replace this one and
+-- silently leave every server disabled. Server-specific workarounds belong
+-- inside this config function.
+--
 -- The servers themselves come from the Nix wrapper PATH
 -- (modules/features/neovim.nix), not from mason.
 return {
@@ -50,6 +56,30 @@ return {
           completeUnimported = true,
           clangdFileStatus = true,
         },
+      })
+
+      -- Omnisharp reports semantic token modifiers and types with spaces in
+      -- them, which Neovim cannot map (folded in from the former
+      -- lua/plugins/omnisharp.lua; the client itself is launched by
+      -- csharp.nvim, see lua/plugins/csharp.lua).
+      vim.lsp.config("omnisharp", {
+        on_attach = function(client)
+          if client.name ~= "omnisharp" then
+            return
+          end
+          local provider = client.server_capabilities.semanticTokensProvider
+          if not provider or not provider.legend then
+            return
+          end
+          for _, key in ipairs({ "tokenModifiers", "tokenTypes" }) do
+            local list = provider.legend[key]
+            if list then
+              for i, value in ipairs(list) do
+                list[i] = value:gsub(" ", "_")
+              end
+            end
+          end
+        end,
       })
 
       vim.lsp.config("nixd", {})

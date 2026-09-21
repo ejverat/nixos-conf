@@ -109,8 +109,9 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       (fzf-lua), `completion.lua` (blink) and `lsp.lua` (native
       `vim.lsp.config` + `vim.lsp.enable`); `formatting.lua` carries the
       format-on-save/lint triggers LazyVim used to wire; `dap.lua`,
-      `refactoring.lua`, `clangd.lua`, `treesitter.lua`, `omnisharp.lua` and
-      `markdown.lua` were rewritten off the LazyVim API; `nix.lua`,
+      `refactoring.lua`, `clangd.lua`, `treesitter.lua` and
+      `markdown.lua` were rewritten off the LazyVim API; `omnisharp.lua` was
+      folded into `lsp.lua` and deleted; `nix.lua`,
       `typescript.lua`, `tailwindcss.lua` and `texlab.lua` (LazyVim-only
       `opts.servers` schemas) were folded into `lsp.lua`/`markdown.lua`;
       `snippets.lua` was dropped. `modules/features/neovim.nix` adds
@@ -173,6 +174,28 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
 
 - LazyVim silently loaded `lua/config/{options,keymaps,autocmds}.lua`; the new
   bootstrap must require them explicitly or they never run.
+- **lazy.nvim merges duplicate plugin specs and the last `config` wins.**
+  `lsp.lua` and `omnisharp.lua` both declared `neovim/nvim-lspconfig` with a
+  `config` function; `omnisharp.lua` sorts later, so it replaced the LSP setup
+  and the deployed T2 started with `vim.lsp.is_enabled("clangd") == false`:
+  every server was silently disabled. Fixed by making `lsp.lua` the only owner
+  of that spec (the omnisharp workaround moved into it) and deleting
+  `omnisharp.lua`. Same hazard applies to any future spec that touches
+  `neovim/nvim-lspconfig`; the rule is documented at the top of `lsp.lua`.
+  `opts` functions do merge across specs (verified with the nvim-dap codelldb
+  adapter from `clangd.lua`), only `config` is last-wins.
+- **cpp tree-sitter highlighting was silently dead before this feature.**
+  `USX.nvim` ships `after/queries/cpp/highlights.scm` using Unreal node types
+  (`unreal_body_macro`) that only exist in the Unreal-patched parsers installed
+  under `~/.local/share/nvim/site/parser` (cpp, c, ushader, verse). The Nix
+  wrapper's stock grammars were earlier on the runtimepath, so
+  `vim.treesitter.query.get("cpp", "highlights")` returned nil and LazyVim's
+  `LazyVim.treesitter.have(ft, "highlights")` guard skipped
+  `vim.treesitter.start` for cpp entirely: no error, no highlighting. The new
+  unconditional `pcall(vim.treesitter.start)` exposed it as a hard error
+  (surfaced by fzf-lua previews). `treesitter.lua` now prepends
+  `stdpath("data")/site` when it exists, so the Unreal parsers win; the stock
+  grammars still cover every other language.
 - `vim.o` rejects dict/array values and string methods: `fillchars`,
   `listchars` and `sessionoptions` need `vim.opt`, and `shortmess:append` needs
   `vim.opt.shortmess`. Both bugs were caught by the sandbox smoke test.
@@ -182,6 +205,13 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
 - `refactoring.lua` referenced an undefined global `pick` and declared
   `<leader>rf`/`<leader>rp` twice; it now uses `select_refactor()` with one
   binding per action.
+
+## Test fixture
+
+`~/Projects/cpp-smoke` (outside this repo) is a scratch C++20 project for
+manual smoke tests: `compile_flags.txt` for clangd, `CMakeLists.txt` for later,
+`include/greeter.h` + `src/greeter.cpp` for the source/header switch, a
+`build/cpp-smoke` binary for codelldb, and a README with the checklist.
 
 ## Verification evidence
 
@@ -209,3 +239,16 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   resolves with the new `fzf`/`ripgrep` entries.
 - T2 runtime: pending the next deploy; verify `:messages`, LSP attach per
   filetype, picker keys, format on save, and compare startup.
+- T2 runtime (partial, on the deployed config): the first deploy shipped two
+  defects that were then fixed and re-verified in the sandbox:
+  (a) no LSP server started (`vim.lsp.is_enabled("clangd") == false`) because of
+  the duplicate `config` merge; after the fix `is_enabled` is true for clangd
+  and nixd, `vim.lsp.config.clangd.cmd` carries the full argument list and
+  `vim.lsp.config["*"]` carries the capabilities;
+  (b) cpp highlighting failed (`pcall(vim.treesitter.start)` false, query build
+  error). After the fix the runtimepath resolves two cpp parsers with
+  `~/.local/share/nvim/site/parser/cpp.so` first, `vim.treesitter.query.get("cpp",
+  "highlights")` is non-nil and `vim.treesitter.start` succeeds.
+  End-to-end attach check with the wrapper PATH on `~/Projects/cpp-smoke`:
+  `clients=1`, `clangd root=/home/ejverat/Projects/cpp-smoke`, zero diagnostics,
+  `vim.lsp.buf.hover` callable.

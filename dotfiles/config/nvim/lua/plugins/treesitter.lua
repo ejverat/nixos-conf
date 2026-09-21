@@ -9,6 +9,18 @@ return {
     lazy = false,
     build = ":TSUpdate",
     config = function()
+      -- The Unreal suite installs patched parsers (cpp, c, ushader, verse) into
+      -- stdpath("data")/site, and USX.nvim ships after/queries/cpp queries that
+      -- use their extra node types (unreal_body_macro). The Nix wrapper's stock
+      -- grammars are earlier on the runtimepath, so without this prepend the cpp
+      -- highlights query cannot be built: the highlighter either fails loudly
+      -- (vim.treesitter.start) or, worse, vim.treesitter.query.get returns nil
+      -- and the buffer silently loses highlighting.
+      local site = vim.fn.stdpath("data") .. "/site"
+      if vim.uv.fs_stat(site .. "/parser") then
+        vim.opt.rtp:prepend(site)
+      end
+
       vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("config_treesitter", { clear = true }),
         callback = function(ev)
