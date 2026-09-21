@@ -43,6 +43,9 @@
 	perSystem = { config, pkgs, lib, self', ... }: 
 	let
 		noctaliaCmd = lib.getExe self'.packages.myNoctalia;
+		# Every panel, launcher and OSD lives behind noctalia's IPC, so the binds
+		# below stay one line each and share the exact same executable path.
+		noctaliaIpc = call: "${noctaliaCmd} ipc call ${call}";
 		terminalCmd = lib.getExe pkgs.wezterm;
 	in
 	{
@@ -105,10 +108,44 @@
         };
 
         binds = {
+          # Shell: launcher, panels and the on-screen displays.
           "Mod+Shift+Slash".show-hotkey-overlay = (_: {});
-          "Mod+D".spawn-sh = "${noctaliaCmd} ipc call launcher toggle";
-          "Super+Alt+L".spawn-sh = "${noctaliaCmd} ipc call lockScreen lock";
-          "Mod+Shift+X".spawn-sh = "${noctaliaCmd} ipc call sessionMenu toggle";
+          "Mod+D".spawn-sh = noctaliaIpc "launcher toggle";
+          "Mod+B".spawn-sh = noctaliaIpc "launcher clipboard";
+          "Mod+A".spawn-sh = noctaliaIpc "controlCenter toggle";
+          "Mod+N".spawn-sh = noctaliaIpc "notifications toggleHistory";
+          "Mod+Shift+N".spawn-sh = noctaliaIpc "notifications toggleDND";
+          "Mod+Shift+B".spawn-sh = noctaliaIpc "bar toggle";
+          "Mod+Shift+D".spawn-sh = noctaliaIpc "darkMode toggle";
+          "Mod+Shift+T".spawn-sh = noctaliaIpc "idleInhibitor toggle";
+          "Mod+Shift+M".spawn-sh = noctaliaIpc "media toggle";
+          "Mod+Alt+B".spawn-sh = noctaliaIpc "bluetooth togglePanel";
+          "Mod+Alt+N".spawn-sh = noctaliaIpc "network togglePanel";
+          "Mod+Alt+C".spawn-sh = noctaliaIpc "calendar toggle";
+
+          # Session: lock, log out, monitors and the shortcut inhibitor.
+          "Super+Alt+L".spawn-sh = noctaliaIpc "lockScreen lock";
+          "Mod+Shift+X".spawn-sh = noctaliaIpc "sessionMenu toggle";
+          "Mod+Shift+E".quit = (_: {});
+          "Ctrl+Alt+Delete".quit = (_: {});
+          "Mod+Shift+P".power-off-monitors = (_: {});
+          "Mod+Escape" = _: {
+            # Keep working while a client inhibits shortcuts (games, VMs).
+            props.allow-inhibiting = false;
+            content.toggle-keyboard-shortcuts-inhibit = (_: {});
+          };
+
+          # Capture: niri's region UI plus noctalia's screen toolkit.
+          "Print".screenshot = (_: {});
+          "Ctrl+Print".screenshot-screen = (_: {});
+          "Alt+Print".screenshot-window = (_: {});
+          "Mod+Shift+S".spawn-sh = noctaliaIpc "plugin:screen-toolkit toggle";
+
+          # Accessibility: screen reader, usable from the lock screen.
+          "Super+Alt+S" = _: {
+            props.allow-when-locked = true;
+            content."spawn-sh" = "pkill orca || exec orca";
+          };
 
           "Mod+Return".spawn-sh = terminalCmd;
           "Mod+Q".close-window = {};
