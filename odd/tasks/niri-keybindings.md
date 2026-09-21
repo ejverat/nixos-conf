@@ -53,13 +53,29 @@ cooldown.
 
 ## Verification evidence
 
-- [ ] `nix build .#myNiri` exits 0 after each commit (validates the config).
-- [ ] No duplicate bind keys in the generated `niri-config.kdl`.
-- [ ] Every new key is absent from the pre-change bind set.
+- [x] `nix build .#myNiri` exits 0 after every commit; the wrapper's
+  `installPhase` runs `niri validate`, so the config format and every new bind
+  property were validated at build time.
+- [x] `nix run .#myNiri -- validate -c <store>/niri-config.kdl` prints
+  `config is valid` (exit 0).
+- [x] No duplicate bind keys: 128 binds, 0 duplicates.
+- [x] Nothing removed: `keys removed vs old: none`; 70 keys added.
+- [x] Action coverage grew from 21 to 64 of the 142 actions `niri msg action`
+  reports for 26.04.
+- [x] Host layers build: `.#nixosConfigurations.chopper.config.system.build.toplevel`
+  (exit 0, 36m) and `.#homeConfigurations.gear5th.activationPackage`
+  (exit 0).
+- [x] `brightnessctl` present in `nixosConfigurations.chopper.config.environment.systemPackages`
+  and in `homeConfigurations.gear5th.config.home.packages`.
+
+Not verified on the running session: the live compositor still runs the config
+from the previously activated profile. The binds take effect on the next
+`home-manager switch` / `nixos-rebuild switch` (the wrapper hot-reloads through
+`niri.service`'s `ExecReload`).
 
 ## Commit identities
 
-- [ ] `feat(niri): bind shell, session and capture actions`
-- [ ] `feat(niri): complete the layout and floating binds`
-- [ ] `feat(niri): add workspace, monitor and wheel navigation binds`
-- [ ] `feat(niri): wire media and brightness keys`
+- [x] `feat(niri): bind shell, session and capture actions` (515a08f)
+- [x] `feat(niri): complete the layout and floating binds` (19a9b04)
+- [x] `feat(niri): add workspace, monitor and wheel navigation binds` (c0875d7)
+- [x] `feat(niri): wire media and brightness keys` (4e736d7)
