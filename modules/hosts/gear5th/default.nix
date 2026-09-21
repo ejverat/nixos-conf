@@ -50,6 +50,7 @@ in {
       self.homeModules.dotfiles
       self.homeModules.gh
       self.homeModules.hyprpicker
+      self.homeModules.kanshi
       self.homeModules.neovim
       self.homeModules.wezterm
       self.homeModules.tmux
