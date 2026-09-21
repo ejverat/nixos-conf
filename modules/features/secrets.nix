@@ -13,8 +13,10 @@
   inputs,
   ...
 }: let
-  # Shared provider-keys paths. See modules/lib/_paths.nix.
+  # Shared provider-keys paths and the sops wrapper generator. See
+  # modules/lib/_paths.nix and modules/lib/_sops-wrapper.nix.
   paths = import ../lib/_paths.nix;
+  mkSopsWrapper = import ../lib/_sops-wrapper.nix;
 in {
   flake.nixosModules.secrets = {
     config,
@@ -27,74 +29,27 @@ in {
     renderedEnv = paths.providerKeysEnvNixos;
 
     # Editing the encrypted file needs the age identity, which is the SSH host
-    # key and is therefore root-only. This wrapper converts it in memory into a
-    # short-lived 0600 file so `sops` can decrypt, then shreds it on exit. The
-    # key material never reaches the terminal or the shell history.
-    sopsEdit = pkgs.writeShellApplication {
-      name = "sops-edit";
-      runtimeInputs = [pkgs.sops pkgs.coreutils];
-      text = ''
-        set -euo pipefail
+    # key and is therefore root-only. This fragment converts it in memory into a
+    # short-lived 0600 file so `sops` can decrypt, then shreds it on exit; the
+    # key material never reaches the terminal or the shell history. The rest of
+    # the wrapper is shared: modules/lib/_sops-wrapper.nix.
+    nixosIdentity = name: ''
+      host_key=/etc/ssh/ssh_host_ed25519_key
 
-        host_key=/etc/ssh/ssh_host_ed25519_key
-        target="''${1:-secrets/secrets.yaml}"
+      # writeShellApplication restricts PATH to runtimeInputs, and sudo resets
+      # PATH again, so the wrapper is addressed by absolute path.
+      sudo_bin=/run/wrappers/bin/sudo
 
-        # writeShellApplication restricts PATH to runtimeInputs, and sudo resets
-        # PATH again, so both binaries are addressed by absolute path.
-        sudo_bin=/run/wrappers/bin/sudo
-        ssh_to_age=${pkgs.ssh-to-age}/bin/ssh-to-age
-
-        tmp="$(mktemp)"
-        chmod 600 "$tmp"
-        trap 'rm -f "$tmp"' EXIT
-
-        if [ -r "$host_key" ]; then
-          "$ssh_to_age" -private-key -i "$host_key" > "$tmp"
-        elif [ -x "$sudo_bin" ]; then
-          echo "sops-edit: reading $host_key via sudo" >&2
-          "$sudo_bin" "$ssh_to_age" -private-key -i "$host_key" > "$tmp"
-        else
-          echo "sops-edit: cannot read $host_key and $sudo_bin is missing" >&2
-          exit 1
-        fi
-
-        # sops runs as the invoking user, so the file keeps its ownership.
-        SOPS_AGE_KEY_FILE="$tmp" sops "$target"
-      '';
-    };
-
-    # Re-encrypt the repo's secrets to the recipients listed in .sops.yaml (run
-    # after adding one, e.g. gear5th's user key). Same identity handling as
-    # sopsEdit: the SSH host key is converted in memory and shredded on exit.
-    sopsUpdatekeys = pkgs.writeShellApplication {
-      name = "sops-updatekeys";
-      runtimeInputs = [pkgs.sops pkgs.coreutils];
-      text = ''
-        set -euo pipefail
-
-        host_key=/etc/ssh/ssh_host_ed25519_key
-        target="''${1:-secrets/secrets.yaml}"
-
-        sudo_bin=/run/wrappers/bin/sudo
-        ssh_to_age=${pkgs.ssh-to-age}/bin/ssh-to-age
-
-        tmp="$(mktemp)"
-        chmod 600 "$tmp"
-        trap 'rm -f "$tmp"' EXIT
-
-        if [ -r "$host_key" ]; then
-          "$ssh_to_age" -private-key -i "$host_key" > "$tmp"
-        elif [ -x "$sudo_bin" ]; then
-          echo "sops-updatekeys: reading $host_key via sudo" >&2
-          "$sudo_bin" "$ssh_to_age" -private-key -i "$host_key" > "$tmp"
-        else
-          echo "sops-updatekeys: cannot read $host_key and $sudo_bin is missing" >&2
-          exit 1
-        fi
-
-        SOPS_AGE_KEY_FILE="$tmp" sops updatekeys "$target"
-      '';
-    };
+      if [ -r "$host_key" ]; then
+        ssh-to-age -private-key -i "$host_key" > "$tmp"
+      elif [ -x "$sudo_bin" ]; then
+        echo "${name}: reading $host_key via sudo" >&2
+        "$sudo_bin" ssh-to-age -private-key -i "$host_key" > "$tmp"
+      else
+        echo "${name}: cannot read $host_key and $sudo_bin is missing" >&2
+        exit 1
+      fi
+    '';
   in {
     imports = [inputs.sops-nix.nixosModules.sops];
 
@@ -120,7 +75,21 @@ in {
     };
 
     # sops for editing the repo's secrets, ssh-to-age for re-deriving recipients.
-    environment.systemPackages = [pkgs.sops pkgs.ssh-to-age sopsEdit sopsUpdatekeys];
+    environment.systemPackages = [
+      pkgs.sops
+      pkgs.ssh-to-age
+      (mkSopsWrapper {
+        inherit pkgs;
+        name = "sops-edit";
+        identity = nixosIdentity "sops-edit";
+      })
+      (mkSopsWrapper {
+        inherit pkgs;
+        name = "sops-updatekeys";
+        identity = nixosIdentity "sops-updatekeys";
+        extra = "updatekeys";
+      })
+    ];
   };
 
   # Portable user layer (non-NixOS hosts, e.g. gear5th/Debian): there is no root
@@ -136,30 +105,18 @@ in {
     # derived age key is materialized into a 0600 temp file and shredded on exit;
     # it is deliberately NOT persisted to ~/.config/sops/age/keys.txt, because
     # that file would be an unprotected copy of a key derived from the SSH one.
-    mkSopsWrapper = name: extra: pkgs.writeShellApplication {
-      inherit name;
-      runtimeInputs = [pkgs.sops pkgs.coreutils pkgs.ssh-to-age];
-      text = ''
-        set -euo pipefail
+    # The rest of the wrapper is shared: modules/lib/_sops-wrapper.nix.
+    portableIdentity = name: ''
+      ssh_key="''${SOPS_EDIT_SSH_KEY:-$HOME/.ssh/id_ed25519}"
 
-        ssh_key="''${SOPS_EDIT_SSH_KEY:-$HOME/.ssh/id_ed25519}"
-        target="''${1:-secrets/secrets.yaml}"
+      if [ ! -r "$ssh_key" ]; then
+        echo "${name}: cannot read $ssh_key" >&2
+        exit 1
+      fi
 
-        if [ ! -r "$ssh_key" ]; then
-          echo "${name}: cannot read $ssh_key" >&2
-          exit 1
-        fi
-
-        tmp="$(mktemp)"
-        chmod 600 "$tmp"
-        trap 'rm -f "$tmp"' EXIT
-
-        # Fails on a passphrase-protected key: ssh-to-age cannot prompt here.
-        ssh-to-age -private-key -i "$ssh_key" > "$tmp"
-
-        SOPS_AGE_KEY_FILE="$tmp" sops ${extra} "$target"
-      '';
-    };
+      # Fails on a passphrase-protected key: ssh-to-age cannot prompt here.
+      ssh-to-age -private-key -i "$ssh_key" > "$tmp"
+    '';
   in {
     imports = [inputs.sops-nix.homeManagerModules.default];
 
@@ -167,8 +124,17 @@ in {
     # (to every recipient listed in .sops.yaml, so chopper keeps its access).
     # `sops-updatekeys` re-wraps the data key after adding a recipient.
     home.packages = [
-      (mkSopsWrapper "sops-edit" "")
-      (mkSopsWrapper "sops-updatekeys" "updatekeys")
+      (mkSopsWrapper {
+        inherit pkgs;
+        name = "sops-edit";
+        identity = portableIdentity "sops-edit";
+      })
+      (mkSopsWrapper {
+        inherit pkgs;
+        name = "sops-updatekeys";
+        identity = portableIdentity "sops-updatekeys";
+        extra = "updatekeys";
+      })
     ];
 
     sops.age.sshKeyPaths = ["${config.home.homeDirectory}/.ssh/id_ed25519"];

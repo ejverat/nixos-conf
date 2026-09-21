@@ -1,7 +1,10 @@
 { self, inputs, ... }: let
-  # Shared with the home-manager variant below (see the file for why it lives
-  # under modules/lib/_).
-  piSettings = import ../lib/_pi-settings.nix;
+  # Shared shell bodies for the NixOS/home-manager activation pair (see
+  # modules/lib/_pi-activation.nix and _gentle-profile.nix). Both variants used
+  # to carry near-identical copies of the seeding, the ownership fixups and the
+  # settings.json bootstrap.
+  piActivation = import ../lib/_pi-activation.nix;
+  gentleProfile = import ../lib/_gentle-profile.nix;
 
   # gentle-ai release pinned by gentle-pi v3.2.0 itself
   # (scripts/gentle-ai-installer.mjs, INSTALLER_VERSION). The binary is a
@@ -44,25 +47,11 @@ in {
     # system activation.
     system.activationScripts.gentleProfileLink = {
       deps = [ "users" ];
-      text = ''
-        src="${homeDir}/.pi/gentle-ai/gentle-profile"
-        dst="${homeDir}/.local/bin/gentle-profile"
-        vendored="${../../dotfiles/pi-gentle-ai/gentle-profile}"
-
-        if [ ! -f "$src" ]; then
-          mkdir -p "$(dirname "$src")"
-          install -m 0755 "$vendored" "$src"
-          chown ${user}:users "$src" 2>/dev/null || true
-          echo "gentle-profile: seeded $src from the vendored copy"
-        else
-          chmod u+x "$src" 2>/dev/null || true
-        fi
-
-        mkdir -p "$(dirname "$dst")"
-        ln -sfn "$src" "$dst"
-        chown -h ${user}:users "$dst" 2>/dev/null || true
-        chown ${user}:users "$(dirname "$dst")" 2>/dev/null || true
-      '';
+      text = gentleProfile {
+        inherit lib homeDir;
+        vendored = ../../dotfiles/pi-gentle-ai/gentle-profile;
+        owner = "${user}:users";
+      };
     };
 
     # Register the Nix-built gentle-pi in pi's global settings. Pi has no
@@ -77,25 +66,11 @@ in {
     # aborts startup with `Tool "<name>" conflicts with ...`.
     system.activationScripts.piGentlePi = {
       deps = [ "users" "groups" ];
-      text = ''
-        agentDir="${homeDir}/.pi/agent"
-        settings="$agentDir/settings.json"
-
-        if [ ! -d "$agentDir" ]; then
-          mkdir -p "$agentDir"
-          chown -R ${user}:users "${homeDir}/.pi"
-        fi
-
-        if [ ! -f "$settings" ]; then
-          echo '{}' > "$settings"
-          chown ${user}:users "$settings"
-        fi
-
-        ${piSettings {
-          inherit pkgs package;
-          pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
-        }}
-      '';
+      text = piActivation {
+        inherit lib pkgs homeDir package;
+        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
+        owner = "${user}:users";
+      };
     };
   };
 
@@ -105,7 +80,6 @@ in {
   # (see the zsh module), matching chopper's session variable.
   flake.homeModules.gentle-pi = { config, pkgs, lib, flakeSelf, ... }: let
     package = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.gentle-pi;
-    agentDir = "${config.home.homeDirectory}/.pi/agent";
   in {
     # NOTE: the package is deliberately NOT added to home.packages. Two reasons:
     #   - pi loads it by the path written into settings.json, so it needs no PATH
@@ -130,38 +104,19 @@ in {
     # runnable, and link it so `gentle-profile` resolves by bare name.
     # `pi --version` does NOT load extensions: only a real session materializes
     # runtime files, which is why the seeding matters.
-    home.activation.gentleProfileLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      src="$HOME/.pi/gentle-ai/gentle-profile"
-      dst="$HOME/.local/bin/gentle-profile"
-      vendored="${../../dotfiles/pi-gentle-ai/gentle-profile}"
-
-      if [ ! -f "$src" ]; then
-        mkdir -p "$(dirname "$src")"
-        install -m 0755 "$vendored" "$src"
-        echo "gentle-profile: seeded $src from the vendored copy"
-      else
-        chmod u+x "$src" 2>/dev/null || true
-      fi
-
-      mkdir -p "$HOME/.local/bin"
-      ln -sfn "$src" "$dst"
-    '';
+    home.activation.gentleProfileLink = lib.hm.dag.entryAfter [ "writeBoundary" ] (gentleProfile {
+      inherit lib;
+      homeDir = config.home.homeDirectory;
+      vendored = ../../dotfiles/pi-gentle-ai/gentle-profile;
+    });
 
     # Same additive merge as the NixOS variant: pi rewrites this file at
     # runtime, so it cannot be managed declaratively.
-    home.activation.piGentlePi = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      agentDir="${agentDir}"
-      settings="$agentDir/settings.json"
-      mkdir -p "$agentDir"
-      if [ ! -f "$settings" ]; then
-        echo '{}' > "$settings"
-      fi
-
-      ${piSettings {
-        inherit pkgs package;
-        pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
-      }}
-    '';
+    home.activation.piGentlePi = lib.hm.dag.entryAfter [ "writeBoundary" ] (piActivation {
+      inherit lib pkgs package;
+      homeDir = config.home.homeDirectory;
+      pkgRegex = "^/nix/store/[a-z0-9]{32}-gentle-pi(-[0-9][^/]*)?$";
+    });
   };
 
   perSystem = { pkgs, inputs', ... }: let
