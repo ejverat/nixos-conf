@@ -122,15 +122,40 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       conform, lint, gitsigns, oil, toggleterm, mini.*, which-key, lualine,
       clangd_extensions, refactoring, nvim-treesitter[-textobjects], markview,
       lazydev, tokyonight, lspconfig) loading clean.
-- [ ] T3 LSP migration: `vim.lsp.config`/`vim.lsp.enable` for nixd, ts_ls,
-      tailwindcss, texlab, clangd (+ the clangd arguments currently hardcoded in
-      `clangd.lua`), and consolidation of the C#/dotnet stack to one plugin.
-      Also decide the fate of `p00f/clangd_extensions.nvim`: it declares
-      `lazy = true` with no event/`ft`/`cmd` and `config = function() end`, so
-      it never loads and its `:ClangdSwitchSourceHeader` command (bound to
-      `<leader>ch` in the same file) is dead today.
-      Evidence: server attaches per filetype, keymaps work, no `lspconfig`
-      deprecation warnings.
+- [x] T3 LSP consolidation. Done 2026-09-21:
+      * native LSP is already the only path (`vim.lsp.config` + `vim.lsp.enable`
+        in `lsp.lua`; no `require("lspconfig")` anywhere);
+      * **C# is one stack**: `pkgs.omnisharp-roslyn` on the wrapper PATH plus
+        `vim.lsp.config("omnisharp", { settings = ..., on_attach = ... })`.
+        `csharp.nvim` is deleted: it started OmniSharp through its own
+        `vim.lsp.start{}` (`lua/csharp/modules/lsp/omnisharp.lua:68`), so the
+        semantic-token workaround this config carried was never applied. The
+        settings mirror what csharp.nvim used to pass as command flags
+        (FormattingOptions, RoslynExtensionsOptions, Sdk, MsBuild).
+      * `easy-dotnet.nvim` stays as the .NET tooling with `picker = "fzf"` and
+        `lsp.enabled = false` (one server per buffer, no second server
+        downloaded at startup). Its dap registration is kept; C# debugging uses
+        its own global `EasyDotnet` dotnet tool, which mason never provided.
+      * **mason is gone**: OmniSharp and codelldb now come from nixpkgs
+        (`pkgs.omnisharp-roslyn`, and a four-line wrapper around
+        `vscode-extensions.vadimcn.vscode-lldb` that exposes
+        `$out/bin/codelldb`). `clangd.lua`, `cmake-tools.lua`, `dap.lua` and
+        `rust.lua` dropped their mason references; `rust.lua` derives liblldb
+        from the resolved adapter path.
+      * **telescope is gone**: `easy-dotnet` uses fzf-lua and `platformio` uses
+        `picker_backend = "ui_select"`, which were the only two remaining
+        consumers.
+      * `p00f/clangd_extensions.nvim` is kept: `<leader>ch` no longer needs it
+        (it issues `textDocument/switchSourceHeader` itself), and it loads on
+        `ft`/`keys` for `:ClangdAST`, type hierarchy and symbol info.
+      Evidence: `nix build .#packages.x86_64-linux.myNeovim` succeeds with the
+      new wrapper; in the sandbox the spec set is 55 plugins (from 60) with no
+      mason/telescope/csharp entry, `vim.lsp.is_enabled("omnisharp")` is true
+      and the adapter resolves to the store `OmniSharp`; end to end on a .NET
+      project OmniSharp attaches with the project root, reports 65 token types
+      with zero spaces (the on_attach fix actually running now) and semantic
+      tokens are active; `dap.adapters` holds only `codelldb` and
+      `easy-dotnet`.
 - [ ] T4 Completion and snippets: blink only, friendly-snippets wired through
       blink's own source (plus `lazydev` integration for `lua`). Evidence:
       completion on lua/c/cpp/ts, snippet expansion, lazydev modules resolved.
@@ -227,12 +252,11 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   for C++ projects (the fixture ships a hand-written one; make-based projects
   can use `bear`/`compiledb`).
 
-## Test fixture
+## Test fixtures
 
-`~/Projects/cpp-smoke` (outside this repo) is a scratch C++20 project for
-manual smoke tests: `compile_flags.txt` for clangd, `CMakeLists.txt` for later,
-`include/greeter.h` + `src/greeter.cpp` for the source/header switch, a
-`build/cpp-smoke` binary for codelldb, and a README with the checklist.
+`~/Projects/cpp-smoke` (C++20: clangd, tree-sitter, textobjects, codelldb) and
+`/tmp/csharp-smoke` (a minimal .csproj + `Program.cs` for OmniSharp). Both are
+outside this repo on purpose.
 
 ## Verification evidence
 

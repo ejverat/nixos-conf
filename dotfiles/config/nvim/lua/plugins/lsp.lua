@@ -58,11 +58,21 @@ return {
         },
       })
 
-      -- Omnisharp reports semantic token modifiers and types with spaces in
-      -- them, which Neovim cannot map (folded in from the former
-      -- lua/plugins/omnisharp.lua; the client itself is launched by
-      -- csharp.nvim, see lua/plugins/csharp.lua).
+      -- Omnisharp (C#, from pkgs.omnisharp-roslyn on the wrapper PATH; there is
+      -- no csharp.nvim any more). It reports semantic token modifiers and types
+      -- with spaces in them, which Neovim cannot map, and the settings below
+      -- mirror what this config used to pass through csharp.nvim.
       vim.lsp.config("omnisharp", {
+        settings = {
+          FormattingOptions = { EnableEditorConfigSupport = true, OrganizeImports = true },
+          RoslynExtensionsOptions = {
+            EnableAnalyzersSupport = true,
+            EnableImportCompletion = true,
+            AnalyzeOpenDocumentsOnly = false,
+          },
+          Sdk = { IncludePrereleases = true },
+          MsBuild = { LoadProjectsOnDemand = false, EnablePackageAutoRestore = true },
+        },
         on_attach = function(client)
           if client.name ~= "omnisharp" then
             return
@@ -87,7 +97,7 @@ return {
       vim.lsp.config("tailwindcss", {})
       vim.lsp.config("texlab", {})
 
-      vim.lsp.enable({ "clangd", "nixd", "ts_ls", "tailwindcss", "texlab" })
+      vim.lsp.enable({ "clangd", "nixd", "ts_ls", "tailwindcss", "texlab", "omnisharp" })
     end,
   },
 }

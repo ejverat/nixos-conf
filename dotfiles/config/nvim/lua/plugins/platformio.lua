@@ -3,8 +3,6 @@ return {
     "anurag3301/nvim-platformio.lua",
     dependencies = {
       { "akinsho/toggleterm.nvim" },
-      { "nvim-telescope/telescope.nvim" },
-      { "nvim-telescope/telescope-ui-select.nvim" },
       { "nvim-lua/plenary.nvim" },
       { "folke/which-key.nvim" },
       { "nvim-treesitter/nvim-treesitter" },
@@ -50,6 +48,10 @@ return {
       lsp = "clangd",
       clangd_source = "compiledb", -- value: ccls | compiledb, For detailed explation check :help platformio-clangd_source
       -- If you pick clangd, it also creates compile_commands.json
+
+      -- ui_select keeps telescope.nvim out of the spec graph; pickers run
+      -- through vim.ui.select.
+      picker_backend = "ui_select",
 
       -- Uncomment out following line to enable platformio menu.
       -- menu_key = "<leader>\\", -- replace this menu key  to your convenience

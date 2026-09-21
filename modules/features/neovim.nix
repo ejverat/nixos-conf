@@ -20,7 +20,16 @@
   };
 
   perSystem = { pkgs, lib, ... }: let
-    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.cargo pkgs.rustc pkgs.fd pkgs.ripgrep pkgs.fzf pkgs.cmake pkgs.imagemagick pkgs.ueberzugpp ]; # fd+ripgrep+fzf: picker (fzf-lua); cmake: cmake-tools.nvim and compile_commands.json generation; imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
+    # The vs code lldb extension ships the adapter and its liblldb outside any
+    # bin/ directory, so expose just the adapter on PATH. It resolves its own
+    # location through /proc/self/exe and finds the sibling lldb/lib, which is
+    # why a plain symlink is enough here.
+    lldbExt = pkgs.vscode-extensions.vadimcn.vscode-lldb;
+    codelldb = pkgs.runCommandLocal "codelldb-${lldbExt.version}" { } ''
+      mkdir -p $out/bin
+      ln -s ${lldbExt}/share/vscode/extensions/vadimcn.vscode-lldb/adapter/codelldb $out/bin/codelldb
+    '';
+    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.omnisharp-roslyn pkgs.cargo pkgs.rustc pkgs.fd pkgs.ripgrep pkgs.fzf pkgs.cmake codelldb pkgs.imagemagick pkgs.ueberzugpp ]; # fd+ripgrep+fzf: picker (fzf-lua); omnisharp+codelldb: C#/native debugging without mason; cmake: cmake-tools.nvim and compile_commands.json generation; imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;
     neovimModule = { config, lib, wlib, ... }: {
       imports = [ wlib.wrapperModules.neovim ];

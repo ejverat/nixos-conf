@@ -4,17 +4,22 @@ return {
     version = "^7",
     lazy = false,
     init = function()
-      local mason_root = vim.fn.stdpath("data") .. "/mason"
-      local extension_path = mason_root .. "/packages/codelldb/extension/"
-      local codelldb_path = extension_path .. "adapter/codelldb"
-      local liblldb_path = extension_path .. "lldb/lib/liblldb.so"
-      local cfg = require("rustaceanvim.config")
+      -- codelldb comes from the Nix wrapper (modules/features/neovim.nix). The
+      -- adapter on PATH is a symlink into the VS Code lldb extension, which is
+      -- also where liblldb lives, so resolve it once and derive the sibling.
+      local adapter = vim.fn.exepath("codelldb")
+      local liblldb = adapter ~= ""
+          and (vim.fn.fnamemodify(vim.fn.resolve(adapter), ":h:h") .. "/lldb/lib/liblldb.so")
+        or nil
 
-      vim.g.rustaceanvim = {
-        dap = {
-          adapter = cfg.get_codelldb_adapter(codelldb_path, liblldb_path),
-        },
-      }
+      if adapter ~= "" and liblldb and vim.uv.fs_stat(liblldb) then
+        local cfg = require("rustaceanvim.config")
+        vim.g.rustaceanvim = {
+          dap = {
+            adapter = cfg.get_codelldb_adapter(adapter, liblldb),
+          },
+        }
+      end
     end,
   },
 }

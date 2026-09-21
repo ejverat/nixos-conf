@@ -70,12 +70,13 @@ return {
     opts = function()
       local dap = require("dap")
       if not dap.adapters.codelldb then
+        -- codelldb comes from the Nix wrapper (see modules/features/neovim.nix).
         dap.adapters.codelldb = {
           type = "server",
           host = "localhost",
           port = "${port}",
           executable = {
-            command = "codelldb",
+            command = vim.fn.exepath("codelldb") ~= "" and vim.fn.exepath("codelldb") or "codelldb",
             args = { "--port", "${port}" },
           },
         }
@@ -99,17 +100,6 @@ return {
             cwd = "${workspaceFolder}",
           },
         }
-      end
-    end,
-  },
-  {
-    -- Keep the codelldb adapter installed next to the mason-managed ones.
-    "mason-org/mason.nvim",
-    optional = true,
-    opts = function(_, opts)
-      opts.ensure_installed = opts.ensure_installed or {}
-      if not vim.tbl_contains(opts.ensure_installed, "codelldb") then
-        table.insert(opts.ensure_installed, "codelldb")
       end
     end,
   },

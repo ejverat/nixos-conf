@@ -1,5 +1,5 @@
 -- Debugging. The adapter side (codelldb) is set up in lua/plugins/clangd.lua;
--- mason-nvim-dap can install extra adapters on demand.
+-- codelldb itself comes from the Nix wrapper, so no adapter downloader is needed.
 return {
   {
     "mfussenegger/nvim-dap",
@@ -7,11 +7,6 @@ return {
       "nvim-lua/plenary.nvim",
       { "rcarriga/nvim-dap-ui", dependencies = { "nvim-neotest/nvim-nio" } },
       { "theHamsta/nvim-dap-virtual-text", opts = {} },
-      {
-        "jay-babu/mason-nvim-dap.nvim",
-        dependencies = { "mason-org/mason.nvim" },
-        opts = { automatic_installation = true, handlers = {}, ensure_installed = {} },
-      },
     },
     keys = {
       { "<leader>dB", function() require("dap").set_breakpoint(vim.fn.input("Breakpoint condition: ")) end, desc = "Breakpoint condition" },
