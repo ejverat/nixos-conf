@@ -148,18 +148,37 @@ Runtime (task 8):
 
 ## Follow-ups (not done, need a user decision)
 
-1. **Launcher visibility is broken and pre-existing.** `~/.nix-profile/share`
-   is not in `XDG_DATA_DIRS` (`/home/ejverat/.local/share/flatpak/exports/share`
-   is first) and `etc/profile.d/hm-session-vars.sh` is not sourced anywhere.
-   The Nix `.desktop` for **wezterm is already invisible for the same reason**,
-   so this predates this change. The canonical fix is
-   `targets.genericLinux.enable = true` in gear5th's `hostModule`, which sets
-   session-wide `XDG_*` variables and therefore needs its own decision.
-2. **Duplicate launcher id.** The Flatpak and the Nix package both export
-   `com.orcaslicer.OrcaSlicer.desktop` (same `Name=OrcaSlicer`). Keeping the
-   2.4.2 Flatpak collides with the native entry once (1) is solved.
-3. **Drop the 2.4.2 Flatpak** as the rollback path, now that the native build
-   is verified: `flatpak uninstall --system com.orcaslicer.OrcaSlicer`.
+1. ~~**Launcher visibility is broken and pre-existing.**~~ — resolved by #36.
+   `~/.nix-profile/share` is not in `XDG_DATA_DIRS` and
+   `etc/profile.d/hm-session-vars.sh` is not sourced anywhere, so the Nix
+   `.desktop` for **wezterm was invisible for the same reason** and this predated
+   the change. Fixed with `targets.genericLinux.enable = true` in gear5th's
+   `hostModule` plus a guarded `hm-session-vars.sh` sourcing in the portable
+   zsh `zshenv`; both hosts now resolve Nix applications in the launcher.
+2. ~~**Duplicate launcher id.**~~ — resolved by removing the Flatpak (item 3).
+   Verified afterwards: exactly **one** provider of
+   `com.orcaslicer.OrcaSlicer.desktop` remains,
+   `~/.nix-profile/share/applications/`. Worth recording that the duplicate was
+   a *latent* ambiguity rather than a visible bug: `~/.nix-profile/share`
+   precedes `/var/lib/flatpak/exports/share` in `XDG_DATA_DIRS`, so the Nix
+   entry already won — any reordering of that variable would have flipped it.
+3. ~~**Drop the 2.4.2 Flatpak** as the rollback path.~~ — done, now that the
+   native build is verified on both hosts:
+   `flatpak uninstall --system --noninteractive com.orcaslicer.OrcaSlicer`.
+   Run with a guard that aborts if the Flatpak is open, and **without**
+   `--delete-data`, so `~/.var/app/com.orcaslicer.OrcaSlicer` (94 MB) is still
+   there as a second rollback path.
+
+   Two things that removal did **not** free, and must not be pruned on the
+   assumption that they were OrcaSlicer's:
+
+   - **`org.gnome.Platform//50` survives** because PrusaSlicer 2.9.6 shares it.
+     Removing OrcaSlicer therefore reclaims only the application itself.
+   - **`org.gtk.Gtk3theme.Flat-Remix-GTK-Blue-Dark` survives** because it is the
+     GTK 3 theme extension that PrusaSlicer, also a GTK 3 app, still matches.
+
+   `flatpak uninstall --unused` has no `--dry-run`, so runtime pruning was
+   deliberately not attempted without a way to preview it.
 4. **Two legacy process presets** exist only in the legacy backup
    (`0.20mm Standard - OVERTUNE Generic`, `.info` + `.json`); importing them
    is optional.

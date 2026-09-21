@@ -212,9 +212,24 @@ but this is cosmetic debt, not something the guard fixed.
 
 ## Follow-ups
 
-- Drop the 2.4.2 Flatpak once the native app is fully trusted.
+- ~~Drop the 2.4.2 Flatpak~~ — done, once the native build was trusted on both
+  hosts: `flatpak uninstall --system --noninteractive com.orcaslicer.OrcaSlicer`.
+  Run with a guard that aborts if the Flatpak is open, and **without**
+  `--delete-data`, so `~/.var/app/com.orcaslicer.OrcaSlicer` is still available as
+  a second rollback path.
+
+  Two runtimes that survived must **not** be pruned as if they had been
+  OrcaSlicer's: `org.gnome.Platform//50` and
+  `org.gtk.Gtk3theme.Flat-Remix-GTK-Blue-Dark` are both still matched by
+  PrusaSlicer 2.9.6, a GTK 3 application. The removal therefore reclaimed only
+  the application itself. `flatpak uninstall --unused` has no `--dry-run`, so
+  runtime pruning was deliberately not attempted without a way to preview it.
+- ~~The duplicate desktop id `com.orcaslicer.OrcaSlicer.desktop`~~ — resolved by
+  the Flatpak removal rather than by a code change: exactly one provider remains,
+  `~/.nix-profile/share/applications/`. Worth recording that the duplicate was a
+  *latent* ambiguity and not a visible bug, because `~/.nix-profile/share`
+  already preceded `/var/lib/flatpak/exports/share` in `XDG_DATA_DIRS`, so the
+  Nix entry was already winning; any reordering would have flipped it.
 - `result.json`: OrcaSlicer writes it into the current working directory on exit.
 - Optional: vendor `Flat-Remix-GTK-Blue-Dark` (the Flatpak's exact look) from
   `~/.dotfiles.bak`, or derive it, if Nordic is not what is wanted.
-- The duplicate desktop id `com.orcaslicer.OrcaSlicer.desktop` (Flatpak + Nix)
-  becomes visible now that Nix `.desktop` entries actually resolve.
