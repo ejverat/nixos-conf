@@ -1,15 +1,19 @@
+-- C/C++ extras on top of the native clangd config in lua/plugins/lsp.lua:
+-- clangd_extensions (AST, type hierarchy, symbol info, source/header switch)
+-- and the codelldb adapter for nvim-dap.
+--
+-- Note: this version of clangd_extensions has no inlay-hint feature, so the
+-- hints come from the native `vim.lsp.inlay_hint` enabled on LspAttach.
 return {
-  -- clangd extensions
   {
     "p00f/clangd_extensions.nvim",
-    lazy = true,
-    config = function() end,
+    ft = { "c", "cpp", "objc", "objcpp" },
+    keys = {
+      { "<leader>ch", "<cmd>ClangdSwitchSourceHeader<cr>", desc = "Switch source/header" },
+      { "<leader>cA", "<cmd>ClangdAST<cr>", desc = "Show AST" },
+    },
     opts = {
-      inlay_hints = {
-        inline = false,
-      },
       ast = {
-        --These require codicons (https://github.com/microsoft/vscode-codicons)
         role_icons = {
           type = "",
           declaration = "",
@@ -29,88 +33,23 @@ return {
         },
       },
     },
-  },
-  -- config lspconfig
-  {
-    "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" },
-    opts = function()
-      local lspconfig = require("lspconfig")
-      local util = require("lspconfig.util")
-
-      -- Construir capabilities de manera segura
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-      if ok and cmp_nvim_lsp.default_capabilities then
-        capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
-      end
-
-      -- Setup de clangd
-      lspconfig.clangd.setup({
-        cmd = {
-          "clangd",
-          "--background-index",
-          "--clang-tidy",
-          "--header-insertion=iwyu",
-          "--completion-style=detailed",
-          "--function-arg-placeholders",
-          "--fallback-style=llvm",
-        },
-        capabilities = capabilities,
-        root_dir = function(fname)
-          return require("lspconfig.util").root_pattern(
-            "Makefile",
-            "configure.ac",
-            "configure.in",
-            "config.h.in",
-            "meson.build",
-            "meson_options.txt",
-            "build.ninja"
-          )(fname) or require("lspconfig.util").root_pattern("compile_commands.json", "compile_flags.txt")(
-            fname
-          ) or require("lspconfig.util").find_git_ancestor(fname)
-        end,
-        on_attach = function(client, bufnr)
-          local opts = { noremap = true, silent = true, buffer = bufnr }
-          vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-        end,
-        init_options = {
-          usePlaceholders = true,
-          completeUnimported = true,
-          clangdFileStatus = true,
-        },
-      })
+    config = function(_, opts)
+      require("clangd_extensions").setup(opts)
     end,
-    keys = {
-      { "<leader>ch", "<cmd>ClangdSwitchSourceHeader<cr>", desc = "Switch Source/Header (C/C++)" },
-    },
   },
   {
     "mfussenegger/nvim-dap",
     optional = true,
-    dependencies = {
-      -- Ensure C/C++ debugger is installed
-      "mason-org/mason.nvim",
-      optional = true,
-      opts = function(_, opts)
-        if type(opts.ensure_installed) == "table" then
-          vim.list_extend(opts.ensure_installed, { "codelldb" })
-        end
-      end,
-    },
     opts = function()
       local dap = require("dap")
-      if not dap.adapters["codelldb"] then
-        require("dap").adapters["codelldb"] = {
+      if not dap.adapters.codelldb then
+        dap.adapters.codelldb = {
           type = "server",
           host = "localhost",
           port = "${port}",
           executable = {
             command = "codelldb",
-            args = {
-              "--port",
-              "${port}",
-            },
+            args = { "--port", "${port}" },
           },
         }
       end
@@ -137,12 +76,13 @@ return {
     end,
   },
   {
-    -- Ensure C/C++ debugger is installed
+    -- Keep the codelldb adapter installed next to the mason-managed ones.
     "mason-org/mason.nvim",
     optional = true,
     opts = function(_, opts)
-      if type(opts.ensure_installed) == "table" then
-        vim.list_extend(opts.ensure_installed, { "codelldb" })
+      opts.ensure_installed = opts.ensure_installed or {}
+      if not vim.tbl_contains(opts.ensure_installed, "codelldb") then
+        table.insert(opts.ensure_installed, "codelldb")
       end
     end,
   },

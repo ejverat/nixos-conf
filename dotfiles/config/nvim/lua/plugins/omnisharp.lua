@@ -1,34 +1,33 @@
+-- Omnisharp workaround: the server reports semantic token modifiers/types with
+-- spaces in them, which Neovim cannot map. See lua/plugins/csharp.lua for the
+-- client that actually launches the server.
+--
+-- T3 of odd/tasks/neovim-minimal-refactor.md consolidates this file,
+-- csharp.nvim and easy-dotnet.nvim into a single C#/dotnet stack.
 return {
-
-  -- Correctly setup lspconfig for C# 🚀
   {
     "neovim/nvim-lspconfig",
-    opts = {
-      servers = {
-        -- Ensure mason installs the server
-        omnisharp = {
-          on_attach = function(client, _)
-            if client.name == "omnisharp" then
-              ---@type string[]
-              local tokenModifiers = client.server_capabilities.semanticTokensProvider.legend.tokenModifiers
-              for i, v in ipairs(tokenModifiers) do
-                tokenModifiers[i] = v:gsub(" ", "_")
-              end
-              ---@type string[]
-              local tokenTypes = client.server_capabilities.semanticTokensProvider.legend.tokenTypes
-              for i, v in ipairs(tokenTypes) do
-                tokenTypes[i] = v:gsub(" ", "_")
+    optional = true,
+    config = function()
+      vim.lsp.config("omnisharp", {
+        on_attach = function(client)
+          if client.name ~= "omnisharp" then
+            return
+          end
+          local provider = client.server_capabilities.semanticTokensProvider
+          if not provider or not provider.legend then
+            return
+          end
+          for _, key in ipairs({ "tokenModifiers", "tokenTypes" }) do
+            local list = provider.legend[key]
+            if list then
+              for i, value in ipairs(list) do
+                list[i] = value:gsub(" ", "_")
               end
             end
-          end,
-        },
-      },
-      -- configure omnisharp to fix the semantic tokens bug (really annoying)
-      setup = {
-        omnisharp = function(_, _)
-          return false
+          end
         end,
-      },
-    },
+      })
+    end,
   },
 }
