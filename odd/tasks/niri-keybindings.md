@@ -34,6 +34,11 @@ cooldown.
   makes `brightnessctl` a real dependency: noctalia's `BrightnessService`
   shells out to it for internal panels. Chopper has no `brightnessctl` today, so
   the package is added to both host layers next to the bind that needs it.
+- **Every spawn bind carries a `hotkey-overlay-title`.** niri's overlay prints
+  the raw command of a spawn bind, and every command in this config is an
+  absolute store path. Custom-titled binds are listed before the non-customized
+  spawn binds, so the titles replace the paths instead of adding to them. The
+  `spawnSh`/`spawnShLocked` helpers keep the call sites one line each.
 - **Monitor binds avoid `Mod+Shift+HLJK` and `Mod+Alt+L`**: the first is already
   `move-window`/`move-column`, the second is the same physical combo as the
   existing `Super+Alt+L` lock (`Mod` is `Super` on a TTY).
@@ -48,7 +53,9 @@ cooldown.
 4. Commit 3: workspace, monitor and wheel binds (`move-to-workspace` keys,
    monitor focus/move, `cooldown-ms` on the wheel binds).
 5. Commit 4: media keys, brightness and `allow-when-locked` on audio.
-6. Verification: `nix build .#myNiri` (runs `niri validate`), duplicate-bind
+6. Commit 5: hotkey overlay titles for every spawn bind, so the startup
+   "Important Hotkeys" dialog stops printing absolute store paths.
+7. Verification: `nix build .#myNiri` (runs `niri validate`), duplicate-bind
    check over the generated KDL, and a final `git diff main`.
 
 ## Verification evidence
@@ -67,6 +74,9 @@ cooldown.
   (exit 0).
 - [x] `brightnessctl` present in `nixosConfigurations.chopper.config.environment.systemPackages`
   and in `homeConfigurations.gear5th.config.home.packages`.
+- [x] Hotkey overlay: 27 spawn binds and 27 `hotkey-overlay-title` properties in
+  the generated config, so no bind can show a store path.
+- [x] `niri validate` prints `config is valid` after the overlay change.
 
 Not verified on the running session: the live compositor still runs the config
 from the previously activated profile. The binds take effect on the next
@@ -79,3 +89,4 @@ from the previously activated profile. The binds take effect on the next
 - [x] `feat(niri): complete the layout and floating binds` (19a9b04)
 - [x] `feat(niri): add workspace, monitor and wheel navigation binds` (c0875d7)
 - [x] `feat(niri): wire media and brightness keys` (4e736d7)
+- [x] `feat(niri): title every spawn bind in the hotkey overlay`

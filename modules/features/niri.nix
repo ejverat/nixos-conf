@@ -52,6 +52,21 @@
 		# Every panel, launcher and OSD lives behind noctalia's IPC, so the binds
 		# below stay one line each and share the exact same executable path.
 		noctaliaIpc = call: "${noctaliaCmd} ipc call ${call}";
+		# niri's hotkey overlay prints the raw command of a spawn bind, and every
+		# command here is an absolute store path. spawnSh attaches the title the
+		# overlay should show instead of the path.
+		spawnSh = title: cmd: (_: {
+			props.hotkey-overlay-title = title;
+			content."spawn-sh" = cmd;
+		});
+		# Same, for the binds that must keep working on the lock screen.
+		spawnShLocked = title: cmd: (_: {
+			props = {
+				hotkey-overlay-title = title;
+				allow-when-locked = true;
+			};
+			content."spawn-sh" = cmd;
+		});
 		terminalCmd = lib.getExe pkgs.wezterm;
 	in
 	{
@@ -116,22 +131,22 @@
         binds = {
           # Shell: launcher, panels and the on-screen displays.
           "Mod+Shift+Slash".show-hotkey-overlay = (_: {});
-          "Mod+D".spawn-sh = noctaliaIpc "launcher toggle";
-          "Mod+B".spawn-sh = noctaliaIpc "launcher clipboard";
-          "Mod+A".spawn-sh = noctaliaIpc "controlCenter toggle";
-          "Mod+N".spawn-sh = noctaliaIpc "notifications toggleHistory";
-          "Mod+Shift+N".spawn-sh = noctaliaIpc "notifications toggleDND";
-          "Mod+Shift+B".spawn-sh = noctaliaIpc "bar toggle";
-          "Mod+Shift+D".spawn-sh = noctaliaIpc "darkMode toggle";
-          "Mod+Shift+T".spawn-sh = noctaliaIpc "idleInhibitor toggle";
-          "Mod+Shift+M".spawn-sh = noctaliaIpc "media toggle";
-          "Mod+Alt+B".spawn-sh = noctaliaIpc "bluetooth togglePanel";
-          "Mod+Alt+N".spawn-sh = noctaliaIpc "network togglePanel";
-          "Mod+Alt+C".spawn-sh = noctaliaIpc "calendar toggle";
+          "Mod+D" = spawnSh "Run an application" (noctaliaIpc "launcher toggle");
+          "Mod+B" = spawnSh "Clipboard history" (noctaliaIpc "launcher clipboard");
+          "Mod+A" = spawnSh "Control center" (noctaliaIpc "controlCenter toggle");
+          "Mod+N" = spawnSh "Notification history" (noctaliaIpc "notifications toggleHistory");
+          "Mod+Shift+N" = spawnSh "Toggle do not disturb" (noctaliaIpc "notifications toggleDND");
+          "Mod+Shift+B" = spawnSh "Toggle the bar" (noctaliaIpc "bar toggle");
+          "Mod+Shift+D" = spawnSh "Toggle dark mode" (noctaliaIpc "darkMode toggle");
+          "Mod+Shift+T" = spawnSh "Toggle the idle inhibitor" (noctaliaIpc "idleInhibitor toggle");
+          "Mod+Shift+M" = spawnSh "Media player panel" (noctaliaIpc "media toggle");
+          "Mod+Alt+B" = spawnSh "Bluetooth panel" (noctaliaIpc "bluetooth togglePanel");
+          "Mod+Alt+N" = spawnSh "Network panel" (noctaliaIpc "network togglePanel");
+          "Mod+Alt+C" = spawnSh "Calendar" (noctaliaIpc "calendar toggle");
 
           # Session: lock, log out, monitors and the shortcut inhibitor.
-          "Super+Alt+L".spawn-sh = noctaliaIpc "lockScreen lock";
-          "Mod+Shift+X".spawn-sh = noctaliaIpc "sessionMenu toggle";
+          "Super+Alt+L" = spawnSh "Lock the screen" (noctaliaIpc "lockScreen lock");
+          "Mod+Shift+X" = spawnSh "Session menu" (noctaliaIpc "sessionMenu toggle");
           "Mod+Shift+E".quit = (_: {});
           "Ctrl+Alt+Delete".quit = (_: {});
           "Mod+Shift+P".power-off-monitors = (_: {});
@@ -145,15 +160,12 @@
           "Print".screenshot = (_: {});
           "Ctrl+Print".screenshot-screen = (_: {});
           "Alt+Print".screenshot-window = (_: {});
-          "Mod+Shift+S".spawn-sh = noctaliaIpc "plugin:screen-toolkit toggle";
+          "Mod+Shift+S" = spawnSh "Screenshot and annotation tools" (noctaliaIpc "plugin:screen-toolkit toggle");
 
           # Accessibility: screen reader, usable from the lock screen.
-          "Super+Alt+S" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = "pkill orca || exec orca";
-          };
+          "Super+Alt+S" = spawnShLocked "Toggle the screen reader: orca" "pkill orca || exec orca";
 
-          "Mod+Return".spawn-sh = terminalCmd;
+          "Mod+Return" = spawnSh "Open a terminal: wezterm" terminalCmd;
 
           # Windows: sizing, tiling and floating.
           "Mod+Q".close-window = {};
@@ -255,50 +267,20 @@
           # Media keys. Audio stays on wpctl so the -l 1.4 sink cap survives;
           # the transport keys use noctalia's MPRIS service, which needs no
           # external player binary. All of them must work while locked.
-          "XF86AudioRaiseVolume" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
-          };
-          "XF86AudioLowerVolume" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
-          };
-          "XF86AudioMute" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-          };
-          "XF86AudioMicMute" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
-          };
-          "XF86AudioPlay" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = noctaliaIpc "media playPause";
-          };
-          "XF86AudioStop" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = noctaliaIpc "media stop";
-          };
-          "XF86AudioPrev" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = noctaliaIpc "media previous";
-          };
-          "XF86AudioNext" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = noctaliaIpc "media next";
-          };
+          "XF86AudioRaiseVolume" = spawnShLocked "Volume up" "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%+";
+          "XF86AudioLowerVolume" = spawnShLocked "Volume down" "wpctl set-volume -l 1.4 @DEFAULT_AUDIO_SINK@ 5%-";
+          "XF86AudioMute" = spawnShLocked "Mute the output" "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
+          "XF86AudioMicMute" = spawnShLocked "Mute the microphone" "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle";
+          "XF86AudioPlay" = spawnShLocked "Play or pause" (noctaliaIpc "media playPause");
+          "XF86AudioStop" = spawnShLocked "Stop playback" (noctaliaIpc "media stop");
+          "XF86AudioPrev" = spawnShLocked "Previous track" (noctaliaIpc "media previous");
+          "XF86AudioNext" = spawnShLocked "Next track" (noctaliaIpc "media next");
 
           # Brightness goes through noctalia for the on-screen display, which
           # makes brightnessctl a dependency of this config (see the packages
           # in both host layers).
-          "XF86MonBrightnessUp" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = noctaliaIpc "brightness increase";
-          };
-          "XF86MonBrightnessDown" = _: {
-            props.allow-when-locked = true;
-            content."spawn-sh" = noctaliaIpc "brightness decrease";
-          };
+          "XF86MonBrightnessUp" = spawnShLocked "Brightness up" (noctaliaIpc "brightness increase");
+          "XF86MonBrightnessDown" = spawnShLocked "Brightness down" (noctaliaIpc "brightness decrease");
 
           # Sizing: 5% steps on the familiar keys, 10% steps on niri's defaults.
           "Mod+Ctrl+H".set-column-width = "-5%";
