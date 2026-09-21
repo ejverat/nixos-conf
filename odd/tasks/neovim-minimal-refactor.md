@@ -155,7 +155,12 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       project OmniSharp attaches with the project root, reports 65 token types
       with zero spaces (the on_attach fix actually running now) and semantic
       tokens are active; `dap.adapters` holds only `codelldb` and
-      `easy-dotnet`.
+      `easy-dotnet`. Runtime follow-up after the user's confirmation: `gd`
+      works on `Program.cs`, and the one inline error it showed
+      (`CS0103`, missing `using System;`) was a fixture bug, not a config one:
+      removing the `using` reproduces it and restoring it clears the buffer to
+      zero diagnostics, which proves OmniSharp diagnostics reach
+      `vim.diagnostic`.
 - [ ] T4 Completion and snippets: blink only, friendly-snippets wired through
       blink's own source (plus `lazydev` integration for `lua`). Evidence:
       completion on lua/c/cpp/ts, snippet expansion, lazydev modules resolved.
@@ -255,8 +260,14 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
 ## Test fixtures
 
 `~/Projects/cpp-smoke` (C++20: clangd, tree-sitter, textobjects, codelldb) and
-`/tmp/csharp-smoke` (a minimal .csproj + `Program.cs` for OmniSharp). Both are
-outside this repo on purpose.
+`~/Projects/csharp-smoke` (a minimal .csproj + `Program.cs` for OmniSharp). Both
+are outside this repo on purpose.
+
+The C# fixture deliberately has no `ImplicitUsings`, so it needs an explicit
+`using System;`: removing it reproduces `CS0103` ("The name 'Console' does not
+exist in the current context") and adding it back leaves zero diagnostics,
+which is the end-to-end proof that OmniSharp diagnostics reach
+`vim.diagnostic` (that is how the missing `using` was first noticed).
 
 ## Verification evidence
 
