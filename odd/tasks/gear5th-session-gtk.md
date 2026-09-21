@@ -143,6 +143,73 @@ Two lessons, both now encoded:
 Operational rule adopted: never activate a switch that can disturb the session
 without the user choosing the moment.
 
+### Second incident: the stale gcroots baseline turns it into a loop
+
+My first pre-activation check compared the built generation against the
+**active** generation and reported a green. That was the wrong baseline, and it
+is why the next switch tore the session down a second time (niri went from pid
+2538 to 8921, and the user manager was replaced at 20:59:05).
+
+Home Manager does not use "the active generation" as its reference. The
+activation script sets:
+
+```sh
+oldGenPath="$(readlink -e "$currentGenGcPath")"   # $hmGcrootsDir/current-home
+```
+
+Because the first activation was killed before its final step, `current-home`
+still pointed at generation 20 while generation 23 was the one actually active.
+The switch therefore diffed **generation 20 against generation 24**, where
+`niri.service` genuinely differs — the niri package path moved from
+`n5vkd0zh…` to `l4w04gxl…`, changing `ExecStart`, `ExecReload` and
+`X-Reload-Triggers`. `sd-switch` restarted it, and the journal repeats the first
+incident's signature:
+
+```
+20:58:41 systemd[2408]: Stopping niri.service - A scrollable-tiling Wayland compositor...
+20:58:41 niri[2538]: quitting due to receiving signal SIGTERM
+20:58:41 systemd[2408]: Stopped target graphical-session.target
+20:58:51 systemd[2408]: Removed slice session.slice
+20:59:06 systemd[7252]: Startup finished in 184ms
+```
+
+This is self-perpetuating. Home Manager writes `new-home` and renames it to
+`current-home` as its **last** step, but the activation runs *inside* the session
+it tears down, so it is killed before that rename. `current-home` stays pinned to
+the old generation and every subsequent switch repeats the teardown.
+
+Repair applied:
+
+```sh
+ln -s "$NEW" "$GC/.current-home.tmp" && mv -T "$GC/.current-home.tmp" "$GC/current-home"
+```
+
+`current-home` and `new-home` now both resolve to the active generation, and a
+rebuild produces that same store path, so `oldGenPath == newGenPath` and the
+activation skips the systemd work entirely.
+
+Two conclusions worth keeping:
+
+1. **Check the baseline Home Manager actually uses.** `gcroots/current-home`, not
+   the profile symlink. A leftover `gcroots/new-home` is the fingerprint of an
+   activation that never finished, and it means the next switch will diff against
+   the wrong generation.
+2. **Run a switch that can stop the session from outside it.** The portable zsh
+   wrapper only autostarts niri on tty1, so tty2 provides a clean shell with no
+   graphical session; from there the activation cannot be killed mid-flight and
+   the gcroots rename completes on its own.
+
+### Correction: the XDG_DATA_DIRS duplication is not fully gone
+
+The live session still shows `~/.nix-profile/share` three times in
+`XDG_DATA_DIRS`. The 1 / 1 / 1 measurement above is accurate for *nested shells*
+and the guard is still correct, but the session-level duplication has a different
+source: `environment.d/10-home-manager.conf` ends with
+`${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}`, so a user manager that inherits an
+already-populated value appends the profile directories again on top of what the
+login shell already exported. Duplicate entries in a search path are harmless,
+but this is cosmetic debt, not something the guard fixed.
+
 ## Follow-ups
 
 - Drop the 2.4.2 Flatpak once the native app is fully trusted.
