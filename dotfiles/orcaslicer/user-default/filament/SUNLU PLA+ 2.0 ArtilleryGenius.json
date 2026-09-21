@@ -1,0 +1,24 @@
+{
+    "compatible_printers": [
+        "Artillery Genius 0.4 nozzle"
+    ],
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_settings_id": [
+        "SUNLU PLA+ 2.0 ArtilleryGenius"
+    ],
+    "from": "User",
+    "hot_plate_temp": [
+        "70"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "70"
+    ],
+    "inherits": "SUNLU PLA+ 2.0 @System",
+    "name": "SUNLU PLA+ 2.0 ArtilleryGenius",
+    "nozzle_temperature": [
+        "215"
+    ],
+    "version": "2.3.1.10"
+}

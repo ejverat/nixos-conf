@@ -1,0 +1,44 @@
+{
+    "emit_machine_limits_to_gcode": "0",
+    "extruder_clearance_height_to_lid": "150",
+    "extruder_clearance_height_to_rod": "10",
+    "extruder_clearance_radius": "32",
+    "from": "User",
+    "gcode_flavor": "klipper",
+    "inherits": "Kingroon KP3S PRO S1 0.4 nozzle",
+    "machine_end_gcode": "G1 E-1.0 F2100 ; retract\nG92 E0.0\nG1{if max_layer_z < max_print_height} Z{z_offset+min(max_layer_z+30, max_print_height)}{endif} E-15.0 F720 ; move print head up & retract filament\nG4 ; wait\nM104 S0 ; turn off temperature\nM140 S0 ; turn off heatbed\nM107 ; turn off fan\nG1 X0 Y105 F3000 ; park print head\nM84 ; disable motors",
+    "machine_max_junction_deviation": [
+        "0",
+        "0"
+    ],
+    "machine_start_gcode": "START_PRINT HOTEND=[first_layer_temperature] BED=[first_layer_bed_temperature] RELATIVE_E_MODE=true PROBE=true",
+    "name": "Kingroon KP3S PRO S1 0.4 nozzle retraction - Klipper",
+    "nozzle_type": [
+        "hardened_steel"
+    ],
+    "print_host": "http://192.168.1.143:7126",
+    "printable_area": [
+        "0x0",
+        "210x0",
+        "210x202",
+        "0x202"
+    ],
+    "printer_agent": "orca",
+    "printer_extruder_id": [
+        "1"
+    ],
+    "printer_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "printer_settings_id": "Kingroon KP3S PRO S1 0.4 nozzle retraction - Klipper",
+    "retract_lift_enforce": [
+        "Top Only"
+    ],
+    "retract_when_changing_layer": [
+        "1"
+    ],
+    "retraction_length": [
+        "1"
+    ],
+    "version": "2.3.1.10"
+}

@@ -1,0 +1,17 @@
+{
+    "bridge_flow": "1.5",
+    "bridge_speed": "10",
+    "from": "User",
+    "inherits": "0.20mm Standard @Artillery Genius",
+    "internal_bridge_flow": "1.5",
+    "internal_bridge_speed": "10",
+    "name": "0.20mm Standard Bridges @Artillery Genius",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.20mm Standard Bridges @Artillery Genius",
+    "version": "2.3.2.60"
+}
