@@ -11,117 +11,60 @@ return {
       { "<leader>r", "", desc = "+refactor", mode = { "n", "v" } },
       {
         "<leader>rs",
-        pick,
-        mode = "v",
-        desc = "Refactor",
+        function() require("refactoring").select_refactor() end,
+        mode = { "n", "v" },
+        desc = "Select refactor",
       },
       {
         "<leader>ri",
-        function()
-          require("refactoring").refactor("Inline Variable")
-        end,
+        function() require("refactoring").refactor("Inline Variable") end,
         mode = { "n", "v" },
-        desc = "Inline Variable",
+        desc = "Inline variable",
       },
       {
         "<leader>rb",
-        function()
-          require("refactoring").refactor("Extract Block")
-        end,
-        desc = "Extract Block",
+        function() require("refactoring").refactor("Extract Block") end,
+        desc = "Extract block",
       },
       {
         "<leader>rf",
-        function()
-          require("refactoring").refactor("Extract Block To File")
-        end,
-        desc = "Extract Block To File",
-      },
-      {
-        "<leader>rP",
-        function()
-          require("refactoring").debug.printf({ below = false })
-        end,
-        desc = "Debug Print",
-      },
-      {
-        "<leader>rp",
-        function()
-          require("refactoring").debug.print_var({ normal = true })
-        end,
-        desc = "Debug Print Variable",
-      },
-      {
-        "<leader>rc",
-        function()
-          require("refactoring").debug.cleanup({})
-        end,
-        desc = "Debug Cleanup",
-      },
-      {
-        "<leader>rf",
-        function()
-          require("refactoring").refactor("Extract Function")
-        end,
-        mode = "v",
-        desc = "Extract Function",
+        function() require("refactoring").refactor("Extract Block To File") end,
+        desc = "Extract block to file",
       },
       {
         "<leader>rF",
-        function()
-          require("refactoring").refactor("Extract Function To File")
-        end,
+        function() require("refactoring").refactor("Extract Function") end,
         mode = "v",
-        desc = "Extract Function To File",
+        desc = "Extract function",
       },
       {
         "<leader>rx",
-        function()
-          require("refactoring").refactor("Extract Variable")
-        end,
+        function() require("refactoring").refactor("Extract Variable") end,
         mode = "v",
-        desc = "Extract Variable",
+        desc = "Extract variable",
+      },
+      {
+        "<leader>rP",
+        function() require("refactoring").debug.printf({ below = false }) end,
+        desc = "Debug print",
       },
       {
         "<leader>rp",
-        function()
-          require("refactoring").debug.print_var()
-        end,
-        mode = "v",
-        desc = "Debug Print Variable",
+        function() require("refactoring").debug.print_var({ normal = true }) end,
+        desc = "Debug print variable",
+      },
+      {
+        "<leader>rc",
+        function() require("refactoring").debug.cleanup({}) end,
+        desc = "Debug cleanup",
       },
     },
     opts = {
-      prompt_func_return_type = {
-        go = false,
-        java = false,
-        cpp = false,
-        c = false,
-        h = false,
-        hpp = false,
-        cxx = false,
-      },
-      prompt_func_param_type = {
-        go = false,
-        java = false,
-        cpp = false,
-        c = false,
-        h = false,
-        hpp = false,
-        cxx = false,
-      },
+      prompt_func_return_type = { go = false, java = false, cpp = false, c = false, h = false, hpp = false, cxx = false },
+      prompt_func_param_type = { go = false, java = false, cpp = false, c = false, h = false, hpp = false, cxx = false },
       printf_statements = {},
       print_var_statements = {},
-      show_success_message = true, -- shows a message with information about the refactor on success
-      -- i.e. [Refactor] Inlined 3 variable occurrences
+      show_success_message = true,
     },
-    config = function(_, opts)
-      require("refactoring").setup(opts)
-      if LazyVim.has("telescope.nvim") then
-        LazyVim.on_load("telescope.nvim", function()
-          pcall(require("telescope").load_extension, "refactoring")
-        end)
-      end
-    end,
   },
 }

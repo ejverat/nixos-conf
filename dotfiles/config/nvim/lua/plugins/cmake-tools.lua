@@ -1,16 +1,5 @@
 return {
   {
-    -- Ensure cmakelint
-    "mason-org/mason.nvim",
-    opts = function(_, opts)
-      if type(opts.ensure_installed) == "table" then
-        vim.list_extend(opts.ensure_installed, { "cmakelint" })
-      else
-        opts.ensure_installed = { "cmakelint" }
-      end
-    end,
-  },
-  {
     "Civitasv/cmake-tools.nvim",
     opts = {
       cmake_command = "cmake", -- this is used to specify cmake command path

@@ -1,15 +1,46 @@
+-- C/C++ extras on top of the native clangd config in lua/plugins/lsp.lua:
+-- clangd_extensions (AST, type hierarchy, symbol info, source/header switch)
+-- and the codelldb adapter for nvim-dap.
+--
+-- Note: this version of clangd_extensions has no inlay-hint feature, so the
+-- hints come from the native `vim.lsp.inlay_hint` enabled on LspAttach.
 return {
-  -- clangd extensions
   {
     "p00f/clangd_extensions.nvim",
-    lazy = true,
-    config = function() end,
-    opts = {
-      inlay_hints = {
-        inline = false,
+    ft = { "c", "cpp", "objc", "objcpp" },
+    keys = {
+      {
+        "<leader>ch",
+        function()
+          if #vim.lsp.get_clients({ bufnr = 0, name = "clangd" }) == 0 then
+            vim.notify("clangd is not attached to this buffer yet", vim.log.levels.WARN)
+            return
+          end
+          -- Same request as :ClangdSwitchSourceHeader, with the two failure
+          -- modes spelled out: clangd answers null when it cannot work out the
+          -- counterpart, which for header -> source means the project has no
+          -- index yet (a compile_commands.json enables --background-index).
+          vim.lsp.buf_request(0, "textDocument/switchSourceHeader", {
+            uri = vim.uri_from_bufnr(0),
+          }, function(err, result)
+            if err then
+              vim.notify("switch source/header: " .. (err.message or "request failed"), vim.log.levels.ERROR)
+            elseif not result then
+              vim.notify(
+                "clangd could not determine the corresponding file; header -> source needs an index (add compile_commands.json to the project)",
+                vim.log.levels.WARN
+              )
+            else
+              vim.cmd.edit(vim.fn.fnameescape(vim.uri_to_fname(result)))
+            end
+          end)
+        end,
+        desc = "Switch source/header",
       },
+      { "<leader>cA", "<cmd>ClangdAST<cr>", desc = "Show AST" },
+    },
+    opts = {
       ast = {
-        --These require codicons (https://github.com/microsoft/vscode-codicons)
         role_icons = {
           type = "",
           declaration = "",
@@ -29,102 +60,24 @@ return {
         },
       },
     },
-  },
-  -- nvim-cmp (autocompletado)
-  {
-    "hrsh7th/nvim-cmp",
-    event = "InsertEnter",
-    dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
-      "hrsh7th/cmp-buffer",
-      "hrsh7th/cmp-path",
-      "L3MON4D3/LuaSnip",
-    },
-    opts = function(_, opts)
-      table.insert(opts.sorting.comparators, 1, require("clangd_extensions.cmp_scores"))
+    config = function(_, opts)
+      require("clangd_extensions").setup(opts)
     end,
-  },
-  -- config lspconfig
-  {
-    "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" },
-    opts = function()
-      local lspconfig = require("lspconfig")
-      local util = require("lspconfig.util")
-
-      -- Construir capabilities de manera segura
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-      if ok and cmp_nvim_lsp.default_capabilities then
-        capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
-      end
-
-      -- Setup de clangd
-      lspconfig.clangd.setup({
-        cmd = {
-          "clangd",
-          "--background-index",
-          "--clang-tidy",
-          "--header-insertion=iwyu",
-          "--completion-style=detailed",
-          "--function-arg-placeholders",
-          "--fallback-style=llvm",
-        },
-        capabilities = capabilities,
-        root_dir = function(fname)
-          return require("lspconfig.util").root_pattern(
-            "Makefile",
-            "configure.ac",
-            "configure.in",
-            "config.h.in",
-            "meson.build",
-            "meson_options.txt",
-            "build.ninja"
-          )(fname) or require("lspconfig.util").root_pattern("compile_commands.json", "compile_flags.txt")(
-            fname
-          ) or require("lspconfig.util").find_git_ancestor(fname)
-        end,
-        on_attach = function(client, bufnr)
-          local opts = { noremap = true, silent = true, buffer = bufnr }
-          vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-        end,
-        init_options = {
-          usePlaceholders = true,
-          completeUnimported = true,
-          clangdFileStatus = true,
-        },
-      })
-    end,
-    keys = {
-      { "<leader>ch", "<cmd>ClangdSwitchSourceHeader<cr>", desc = "Switch Source/Header (C/C++)" },
-    },
   },
   {
     "mfussenegger/nvim-dap",
     optional = true,
-    dependencies = {
-      -- Ensure C/C++ debugger is installed
-      "mason-org/mason.nvim",
-      optional = true,
-      opts = function(_, opts)
-        if type(opts.ensure_installed) == "table" then
-          vim.list_extend(opts.ensure_installed, { "codelldb" })
-        end
-      end,
-    },
     opts = function()
       local dap = require("dap")
-      if not dap.adapters["codelldb"] then
-        require("dap").adapters["codelldb"] = {
+      if not dap.adapters.codelldb then
+        -- codelldb comes from the Nix wrapper (see modules/features/neovim.nix).
+        dap.adapters.codelldb = {
           type = "server",
           host = "localhost",
           port = "${port}",
           executable = {
-            command = "codelldb",
-            args = {
-              "--port",
-              "${port}",
-            },
+            command = vim.fn.exepath("codelldb") ~= "" and vim.fn.exepath("codelldb") or "codelldb",
+            args = { "--port", "${port}" },
           },
         }
       end
@@ -147,16 +100,6 @@ return {
             cwd = "${workspaceFolder}",
           },
         }
-      end
-    end,
-  },
-  {
-    -- Ensure C/C++ debugger is installed
-    "mason-org/mason.nvim",
-    optional = true,
-    opts = function(_, opts)
-      if type(opts.ensure_installed) == "table" then
-        vim.list_extend(opts.ensure_installed, { "codelldb" })
       end
     end,
   },
