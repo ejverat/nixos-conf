@@ -15,9 +15,10 @@ return {
     opts = {
       keymap = {
         preset = "default",
+        -- <C-l>/<C-h> placeholder jumps live in lua/config/keymaps.lua: blink's
+        -- own snippet_forward/backward commands only exist while this menu is
+        -- open, and the native vim.snippet jumps work in both states.
         ["<C-y>"] = { "select_and_accept" },
-        ["<C-l>"] = { "snippet_forward", "fallback" },
-        ["<C-h>"] = { "snippet_backward", "fallback" },
       },
       appearance = { nerd_font_variant = "mono" },
       completion = {

@@ -88,6 +88,21 @@ map("n", "<leader>ud", function()
   vim.notify("diagnostics " .. (not enabled and "on" or "off"))
 end, { desc = "Toggle diagnostics" })
 
+-- Snippet placeholders. blink.cmp expands snippets with the native
+-- vim.snippet engine, and its own snippet_forward/backward bindings only exist
+-- while its completion menu is open, so bind the native jumps here: they work
+-- with the menu closed and blink lets them through while it is open.
+map({ "i", "s" }, "<C-l>", function()
+  if vim.snippet.active({ direction = 1 }) then
+    vim.snippet.jump(1)
+  end
+end, { desc = "Next snippet placeholder" })
+map({ "i", "s" }, "<C-h>", function()
+  if vim.snippet.active({ direction = -1 }) then
+    vim.snippet.jump(-1)
+  end
+end, { desc = "Previous snippet placeholder" })
+
 -- Terminal (toggleterm) and terminal-mode escape
 map({ "n", "t" }, "<C-/>", function()
   require("toggleterm").toggle()

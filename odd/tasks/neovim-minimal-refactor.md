@@ -178,7 +178,9 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       through `vim.snippet` produces the expected text and placeholder jumps
       work; `:messages` is clean. The interactive menu itself (type a prefix in
       insert mode, `<C-y>` to accept, `<C-l>`/`<C-h>` to move between snippet
-      placeholders, `<C-n>`/`<C-p>` to pick) is the user-facing check.
+      placeholders, `<C-n>`/`<C-p>` to pick) is the user-facing check; the
+      placeholder jumps were verified headlessly by calling the mapping
+      callbacks.
 - [ ] T5 Deferred loading for the heavy stacks: `dap` (cmd/keys),
       `image.nvim` + `molten` (`ft = python`), Unreal suite (`ft = {c,cpp}`,
       `cmd = UDEV`), `cmake-tools` (`ft = cmake`), `platformio` (keep `cond`),
