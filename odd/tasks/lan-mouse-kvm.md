@@ -113,9 +113,11 @@ Running environment, measured on chopper:
    default, interactive authorization). Commit: `2726108` — feat(gear5th): wire
    lan-mouse and document its Debian-side prerequisites.
 3. Record verification evidence (below) in this file and add the portability note
-   to `README.md`. Commit.
-4. First-run runbook for the user (authorize both fingerprints, confirm the
-   crossing direction, address stability). Commit.
+   to `README.md`. Commit: `03d7639` — docs(lan-mouse): record the verification
+   evidence and the portability notes.
+4. First-run runbook in both host docs (authorize the fingerprints, confirm the
+   crossing direction, check address stability). Commit: docs(chopper): document
+   the lan-mouse first-run steps — the commit that closes this document.
 
 ## Risks
 
