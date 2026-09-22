@@ -296,9 +296,9 @@ lazy.nvim clones plugins on first start: needs `git`. Some plugins compile:
 command -v gcc make || sudo apt install build-essential
 ```
 
-### 6.10 nvim plugins drifted from the lockfile / blink.cmp asks for `blink.lib`
+### 6.10 nvim plugin or parser state drifted from the pinned set
 
-**Symptom:** on startup (or on `InsertEnter`/`CmdlineEnter`)
+**Symptom A:** on startup (or on `InsertEnter`/`CmdlineEnter`)
 `Failed to source .../blink.cmp/plugin/blink-cmp.lua ... blink.cmp v2 requires
 "saghen/blink.lib"`.
 
@@ -333,6 +333,24 @@ Any plugin still off its pin afterwards is one lazy.nvim skips on purpose (a
 project); pin it with `git -C ~/.local/share/nvim/lazy/<plugin> checkout
 <lockfile-commit>`. Full analysis and evidence:
 `odd/tasks/neovim-blink-pin.md`.
+
+**Symptom B:** cpp files lose tree-sitter highlighting and every fzf-lua preview
+warns `unable to attach treesitter highlighter for filetype 'cpp' ... Invalid
+node type "unreal_body_macro"`.
+
+**Cause:** `nvim-treesitter`'s `build = ":TSUpdate"` rebuilt every parser it
+knows into `stdpath("data")/site/parser`, which is exactly where
+`tree-sitter-manager.nvim` installs the Unreal-patched cpp grammar that
+`USX.nvim`'s `unreal_body_macro` queries need. The hook is gone now (the Nix
+wrapper already ships every stock grammar through the pack dir); reinstall the
+patched parser with tree-sitter-manager's own command, not nvim-treesitter's:
+
+```sh
+nvim --headless some.cpp '+TSUpdateSync cpp' +qa
+```
+
+`site/parser/cpp.so` must stay bigger than ~9 MB; the stock one is ~5.5 MB. Full
+analysis and evidence: `odd/tasks/neovim-treesitter-parser-clobber.md`.
 
 ### 6.11 Lock screen rejects the password
 
