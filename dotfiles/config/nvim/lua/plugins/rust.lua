@@ -16,10 +16,20 @@ return {
         or nil
 
       if adapter ~= "" and liblldb and vim.uv.fs_stat(liblldb) then
-        local cfg = require("rustaceanvim.config")
+        -- Inlined from rustaceanvim.config.get_codelldb_adapter: requiring that
+        -- module here would load the plugin at startup (it does now that
+        -- codelldb is on the wrapper PATH), which defeats ft = "rust".
         vim.g.rustaceanvim = {
           dap = {
-            adapter = cfg.get_codelldb_adapter(adapter, liblldb),
+            adapter = {
+              type = "server",
+              port = "${port}",
+              host = "127.0.0.1",
+              executable = {
+                command = adapter,
+                args = { "--liblldb", liblldb, "--port", "${port}" },
+              },
+            },
           },
         }
       end
