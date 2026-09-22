@@ -190,6 +190,38 @@ script was run with `HOME` in a throwaway directory. With no file it created one
 distinctive content) it reported `keeping the existing …` and left both the
 content and the mode untouched.
 
+**First run on the real pair (2026-09-22, after the rebuild on both hosts).**
+chopper's daemon starts with the pinned backends and falls back to the `ips` list
+exactly as designed, because the mDNS answer is unusable here:
+
+```
+INFO  input_capture] using capture backend: layer-shell
+INFO  input_emulation] using emulation backend: wlroots
+INFO  input_capture::layer_shell] adding capture for position right - using outputs: ["eDP-1"]
+WARN  lan_mouse::service] could not resolve gear5th.local: no records found
+      for Query { name: Name("gear5th.local."), query_type: AAAA, ... }
+INFO  lan_mouse::connect] connecting to 192.168.1.114:4242 ...
+INFO  lan_mouse::connect] connecting to 192.168.1.159:4242 ...
+WARN  lan_mouse::connect] failed to connect to 192.168.1.159:4242: `Alert is Fatal
+      or Close Notify`
+WARN  lan_mouse::connect] failed to connect to 192.168.1.114:4242: `Connection timed out`
+```
+
+Three operational findings, all acted on:
+
+- **The peer's daemon is up and listening.** A DTLS alert rather than a timeout on
+  `192.168.1.159:4242` means gear5th's listener answered the handshake and refused
+  it, which is what an unauthorized fingerprint looks like. The remaining step is
+  the interactive authorization, not a configuration defect.
+- **`192.168.1.114` is not gear5th**: nothing listens on 4242 there, even though it
+  answers ping and mDNS associates it with `gear5th.local`. It is a stale record
+  pointing at whatever device reused that lease, so chopper's `ips` list now carries
+  only `192.168.1.159`. The already-seeded file is application-owned, so that edit
+  has to be made on the host with the GUI.
+- chopper's firewall rule is in the generated ruleset as
+  `ip46tables -A nixos-fw -p udp --dport 4242 -j nixos-fw-accept`, so the inbound
+  direction is open on this side too.
+
 **Not verified here, and why**
 
 - The peer side cannot be exercised from chopper: nothing runs the daemon on

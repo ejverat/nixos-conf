@@ -145,12 +145,15 @@
           position = "right"
           hostname = "gear5th.local"
           activate_on_startup = true
-          # Fallback for when mDNS does not answer. gear5th answered on both of
-          # these addresses during setup, but both hosts are on DHCP leases: a
-          # reservation on the router is what stops this list from drifting.
-          # The peer's fingerprint still has to match before anything is
-          # accepted.
-          ips = ["192.168.1.159", "192.168.1.114"]
+          # Fallback for when mDNS does not answer, which is the normal case
+          # here: `gear5th.local` only advertises records this host cannot use
+          # (an AAAA answer with no A, plus a stale 192.168.1.114 that now
+          # belongs to a different device -- nothing listens on 4242 there).
+          # 192.168.1.159 is the address the daemon actually handshakes with,
+          # and it is a DHCP lease: reserving it on the router is what stops
+          # this list from drifting. The peer's fingerprint still has to match
+          # before anything is accepted.
+          ips = ["192.168.1.159"]
         '';
 
         home.username = "ejverat";
