@@ -251,6 +251,11 @@ machine `Mod+…` therefore does nothing: it falls through to the window, and si
 niri otherwise consumes those combinations they never reach an application
 either. `Alt+Print`, niri's only default Alt bind, behaves the same way.
 
+**Confirmed on the deployed pair (2026-09-22):** typing and application
+shortcuts work on the receiving machine while `Mod+…` does nothing there, which is
+this issue rather than a defect in this wiring. Compositor actions on the
+receiving machine have to be done with that machine's own keyboard.
+
 - Upstream: niri#403, open since 2024-05-27; the maintainer's answer is that
   catching those presses may not be possible with Smithay today. There is no
   configuration escape hatch: `grep -ri "virtual keyboard"` over niri's wiki and

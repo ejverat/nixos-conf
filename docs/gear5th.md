@@ -152,7 +152,7 @@ on a TTY session, and this config does not override it). One limitation to expec
 while you drive this machine from chopper's keyboard, **gear5th's own niri
 shortcuts do not fire** — niri ignores keys injected through the virtual keyboard
 (niri#403), so `Mod+…` falls through to the window. Shortcuts the application
-handles itself are unaffected.
+handles itself are unaffected; for compositor actions, use gear5th's own keyboard.
 
 There is no clipboard sharing: lan-mouse does not implement it.
 
