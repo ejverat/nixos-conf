@@ -2,7 +2,10 @@ return {
   {
     "mrcjkb/rustaceanvim",
     version = "^7",
-    lazy = false,
+    -- Deferred to Rust buffers; `init` still runs at startup, which is where
+    -- vim.g.rustaceanvim has to be set before the plugin loads.
+    ft = "rust",
+    cmd = { "RustLsp", "rustaceanvim" },
     init = function()
       -- codelldb comes from the Nix wrapper (modules/features/neovim.nix). The
       -- adapter on PATH is a symlink into the VS Code lldb extension, which is

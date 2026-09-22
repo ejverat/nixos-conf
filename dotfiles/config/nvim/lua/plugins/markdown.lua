@@ -1,7 +1,7 @@
 return {
   -- Markdown rendering inside the buffer (moved here from the old texlab.lua,
-  -- which only existed to import it).
-  { "OXY2DEV/markview.nvim", lazy = false },
+  -- which only existed to import it). Deferred to markdown buffers.
+  { "OXY2DEV/markview.nvim", ft = { "markdown", "markdown_inline", "quarto", "rmd" } },
 
   {
     "selimacerbas/markdown-preview.nvim",

@@ -182,11 +182,33 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       placeholder jumps were verified end to end in a real `tmux` session
       (`send-keys`, cursor 10 -> 14 -> 17 forward and back with `<C-h>`), which
       is also what exposed the fold bug recorded below.
-- [ ] T5 Deferred loading for the heavy stacks: `dap` (cmd/keys),
-      `image.nvim` + `molten` (`ft = python`), Unreal suite (`ft = {c,cpp}`,
-      `cmd = UDEV`), `cmake-tools` (`ft = cmake`), `platformio` (keep `cond`),
-      `markdown-preview` (`cmd`). Evidence: startup drops, each stack still
-      opens on demand.
+- [x] T5 Deferred loading. Done 2026-09-21. Measured first (`--startuptime` plus
+      an eager-plugin census), then deferred what actually cost: the dap chain
+      (`require('dap')` 9.6 ms + `dapui` 2.0) and `fzf-lua` (5.4 ms) were only
+      loaded because `easy-dotnet`'s setup registers a dap adapter and validates
+      its picker; `image.nvim` + `molten` cost ~7 ms (`image/utils/tmux` alone
+      4.9 ms); `UNL.nvim` ~5 ms; `nvim-ts-autotag` 2.8 ms.
+      Triggers now: `easy-dotnet` (`ft = cs`, `cmd = Dotnet`), `molten` +
+      `image.nvim` (`ft = python`), `UNL.nvim` (rides with UnrealDev on `ft`/
+      `cmd`), `tree-sitter-manager` (`ft = cpp,c,ushader,verse`), `rustaceanvim`
+      (`ft = rust`, `cmd = RustLsp`), `markview` (`ft = markdown*`),
+      `nvim-ts-autotag` (`ft` = markup/jsx set), `neogen` (`cmd`), `colortils`
+      (`cmd`), `oil` (`cmd = Oil` + `keys` for `-`, with its setup moved to
+      `opts` so the keymap exists before the plugin loads), `toggleterm` (`cmd`).
+      `USX.nvim` stays eager **on purpose**: its `after/queries/cpp` files must be
+      on the runtimepath when the highlighter attaches, which happens on
+      FileType, too late for a lazy load to add them. `platformio` (`cond`),
+      `cmake-tools` (`keys`) and `markdown-preview` (`cmd`) were already deferred
+      in T2.
+      Evidence: eager plugins 25 -> 6 (`USX.nvim`, `lazy.nvim`, `mini.icons`,
+      `nvim-lspconfig`, `nvim-treesitter`, `tokyonight.nvim`, all deliberate);
+      startup 90 -> **32.2 / 32.4 / 33.4 ms** across three runs (196 ms was the
+      original LazyVim baseline). On-demand matrix verified in the sandbox: a
+      `.cs` loads easy-dotnet + nvim-dap + plenary, a `.py` loads molten +
+      image, a `.cpp` loads UnrealDev + UNL + tree-sitter-manager, a `.rs` loads
+      rustaceanvim, a `.md` loads markview + autotag, `:Oil` loads oil and the
+      `<C-/>` mapping loads toggleterm; the `:Dotnet`, `:Oil`, `:Neogen`,
+      `:Colortils` and `:ToggleTerm` stubs all exist before loading.
 - [ ] T6 Lockfile policy + docs: single source of truth for
       `lazy-lock.json`, documented update flow (runtime -> repo), and a short
       `docs/` note or README section for the new layout. Evidence: lockfile

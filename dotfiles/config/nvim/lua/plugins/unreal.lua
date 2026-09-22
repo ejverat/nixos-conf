@@ -10,7 +10,9 @@ return {
       -- (provided via the NixOS neovim wrapper extraPackages).
       {
         "taku25/UNL.nvim",
-        lazy = false,
+        -- No `lazy = false`: it rides along with UnrealDev, which only loads on
+        -- C/C++ files or :UDEV. Its Rust scanner and API used to be part of
+        -- every start.
         build = "cargo build --release --manifest-path scanner/Cargo.toml",
       },
       "taku25/UEP.nvim", -- project explorer
@@ -29,6 +31,9 @@ return {
       "taku25/UDB.nvim", -- debug (nvim-dap)
       {
         "taku25/USX.nvim", -- filetype detection + Unreal syntax queries
+        -- Stays eager on purpose: its after/queries/cpp files have to be on the
+        -- runtimepath when the tree-sitter highlighter attaches, and that
+        -- happens on FileType, before a lazy load could add them.
         lazy = false,
         opts = {},
       },
@@ -79,6 +84,9 @@ return {
     -- the custom ushader/verse grammars. Requires `tree-sitter` CLI (already in
     -- the nvim wrapper extraPackages) and a C compiler (gcc).
     "romus204/tree-sitter-manager.nvim",
+    -- Only relevant when editing Unreal grammars, and its install check used to
+    -- run on every start.
+    ft = { "cpp", "c", "ushader", "verse" },
     opts = {
       ensure_installed = { "cpp", "ushader", "verse" },
       highlight = { "cpp", "ushader", "verse" },
