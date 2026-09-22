@@ -126,10 +126,11 @@ tool needs. **`Mod` is the Super key** here (niri:
 `config.input.mod_key.unwrap_or(ModKey::Super)` on a TTY session; this config does
 not override it). While you drive gear5th from this keyboard, **gear5th's own niri
 shortcuts do not fire**: niri ignores keys injected through the virtual keyboard
-(niri#403), so `Mod+…` falls through to the window there. Application shortcuts are
-unaffected. Clipboard is not part of this: lan-mouse does not implement it. Why
-every libei-based alternative is unusable on niri is in
-`odd/tasks/lan-mouse-kvm.md`.
+(niri#403), so `Mod+…` falls through to the window there. Application shortcuts
+are unaffected; for compositor actions on gear5th, use gear5th's own keyboard.
+That behaviour is confirmed by hand, not merely expected. Clipboard is not part of
+this: lan-mouse does not implement it. Why every libei-based alternative is
+unusable on niri is in `odd/tasks/lan-mouse-kvm.md`.
 
 ## What is deliberately not in Nix
 
