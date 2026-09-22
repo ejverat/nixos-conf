@@ -122,7 +122,12 @@ systemctl --user show-environment | grep WAYLAND_DISPLAY
 
 If the cursor does not cross back, `Mod+Escape` releases niri's
 keyboard-shortcut inhibitor (`modules/features/niri.nix`), the escape hatch a KVM
-tool needs. Clipboard is not part of this: lan-mouse does not implement it. Why
+tool needs. **`Mod` is the Super key** here (niri:
+`config.input.mod_key.unwrap_or(ModKey::Super)` on a TTY session; this config does
+not override it). While you drive gear5th from this keyboard, **gear5th's own niri
+shortcuts do not fire**: niri ignores keys injected through the virtual keyboard
+(niri#403), so `Mod+…` falls through to the window there. Application shortcuts are
+unaffected. Clipboard is not part of this: lan-mouse does not implement it. Why
 every libei-based alternative is unusable on niri is in
 `odd/tasks/lan-mouse-kvm.md`.
 

@@ -147,6 +147,13 @@ getent hosts chopper.local
 If that fails, the `ips` list in the config is the fallback, and both hosts'
 addresses are DHCP leases that should be reserved on the router.
 
+**`Mod` is the Super key** (niri: `config.input.mod_key.unwrap_or(ModKey::Super)`
+on a TTY session, and this config does not override it). One limitation to expect:
+while you drive this machine from chopper's keyboard, **gear5th's own niri
+shortcuts do not fire** — niri ignores keys injected through the virtual keyboard
+(niri#403), so `Mod+…` falls through to the window. Shortcuts the application
+handles itself are unaffected.
+
 There is no clipboard sharing: lan-mouse does not implement it.
 
 ## What is deliberately not in Nix here

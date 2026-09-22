@@ -241,6 +241,36 @@ Three operational findings, all acted on:
   `192.168.1.159`. Both hosts are on DHCP leases, which is what the pinned
   `ips` list in each config is compensating for until the addresses are reserved.
 
+## Known limitation: the receiving compositor does not run its own shortcuts
+
+Whichever machine receives the shared keyboard cannot trigger **its own niri
+keybindings** with those keys. niri runs the `binds { }` tree only for keys that
+arrive from a physical (libinput) keyboard; keys injected through
+`zwp_virtual_keyboard_v1` reach the focused application instead. On the receiving
+machine `Mod+…` therefore does nothing: it falls through to the window, and since
+niri otherwise consumes those combinations they never reach an application
+either. `Alt+Print`, niri's only default Alt bind, behaves the same way.
+
+- Upstream: niri#403, open since 2024-05-27; the maintainer's answer is that
+  catching those presses may not be possible with Smithay today. There is no
+  configuration escape hatch: `grep -ri "virtual keyboard"` over niri's wiki and
+  `resources/default-config.kdl` returns nothing.
+- `Mod` is Super here, fixed in code rather than in configuration:
+  `src/backend/mod.rs:121` resolves it as
+  `config.input.mod_key.unwrap_or(ModKey::Super)` for a TTY session (it only
+  becomes Alt when niri runs nested in a winit window, `:114-119`).
+- lan-mouse is not the cause: its `wlroots` backend shares a single virtual
+  keyboard across clients and forwards modifier state explicitly
+  (`input-emulation/src/wlroots.rs:234,254`), which is also why modifiers keep
+  working inside applications.
+- Consequence for this pair: compositor-level actions (open a terminal, close a
+  window, switch workspaces) have to be done on the machine whose physical
+  keyboard you are sitting at; everything the application itself handles
+  (typing, Ctrl/Alt/AltGr shortcuts, application menus) works on the receiving
+  side.
+- A real fix would be injection through `uinput`, which niri treats as a physical
+  device: upstream lan-mouse#465, still open.
+
 ## Follow-ups
 
 - Clipboard sharing would require a compositor with an EIS server (GNOME 45+ or

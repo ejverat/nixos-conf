@@ -233,6 +233,12 @@ protocol set (`wlr-virtual-pointer` + `virtual-keyboard` to inject, `layer-shell
   open UDP 4242 if a host firewall is running. Both host docs carry the steps.
 - No clipboard: lan-mouse does not implement it. That would require an EIS server
   on at least one side, i.e. a compositor other than niri.
+- **The receiving machine's own niri shortcuts do not fire** (niri#403: keys
+  injected through the virtual keyboard never reach niri's `binds`, so `Mod+…`
+  falls through to the window instead). Application shortcuts are unaffected.
+  There is no configuration escape hatch; a fix needs a `uinput`-based emulation
+  backend upstream (lan-mouse#465). `Mod+Escape` on the physical keyboard still
+  works.
 
 ## Roadmap
 
