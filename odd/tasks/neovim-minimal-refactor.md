@@ -230,8 +230,42 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       both copies match (no backup written); no arguments prints the usage and
       exits 2. `~/.config/nvim/lazyvim.json` remains in the writable state
       directory and nothing reads it any more.
-- [ ] T7 Close-out: final `--startuptime` and plugin count comparison against
-      the baseline, feature doc updated, memory recorded.
+- [x] T7 Close-out. Done 2026-09-21: final measurement on the deployed config and
+      on an environment with the wrapper PATH, feature doc completed and memory
+      recorded. The close-out also caught the last regression: measuring the
+      **deployed** config instead of the sandbox exposed `rustaceanvim` as eager
+      (7 instead of 6) because `rust.lua`'s `init` required
+      `rustaceanvim.config` to build the codelldb adapter, and T3 putting
+      codelldb on the PATH made that branch start running. The adapter is inlined
+      now, with the same shape, and `ft = "rust"` is intact.
+
+## Close-out: baseline vs final
+
+| Metric | Original LazyVim config | Final |
+| --- | --- | --- |
+| Startup (`--startuptime`, 3 runs) | 196 ms | **30.7 / 32.9 / 32.6 ms** |
+| Plugins loaded at startup | 73 | **6** (all deliberate: `lazy.nvim`, `tokyonight`, `nvim-lspconfig`, `nvim-treesitter`, `USX.nvim` for its cpp queries, `mini.icons`) |
+| Plugin spec files | 28 | **23** |
+| Locked plugins | 76 (20 of them no longer in the spec) | **56** |
+| Installed plugin directories | 76 | **56** |
+| `~/.local/share/nvim` | 1.1 GB | 963 MB now, **~585 MB** once the unused `mason/` (378 MB) is deleted |
+| Completion engines | 2, one of them dead | **1** (blink.cmp) |
+| C# stacks | 3 | **1** (OmniSharp from Nix + easy-dotnet tooling) |
+| Binary downloads at runtime | mason (OmniSharp, codelldb, 6 unused servers) | **none** (Nix provides them) |
+| Pickers | telescope (plus snacks installed) | **fzf-lua** |
+
+The feature is `feat/nvim-minimal`: 16 commits, 44 files, +1534/-1037.
+
+## Still open (outside this feature)
+
+- `~/.local/share/nvim/mason` (378 MB) is dead weight and still on disk; the
+  deletion is blocked for the agent by its destructive-command policy, so it is
+  one command for the user: `rm -rf ~/.local/share/nvim/mason`.
+- Sandbox leftovers from verification: `~/.local/share/nvim-t2`,
+  `~/.local/state/nvim-t2` and the `/tmp` fixtures.
+- Delivery (push, issue, PR, native review) is the user's decision; the repo
+  convention is issue-first with one `type:*` label.
+- `nvim-lock.sh check` should be run after each `:Lazy update`.
 
 ## Deviations from the proposed stack (recorded, revisable)
 
