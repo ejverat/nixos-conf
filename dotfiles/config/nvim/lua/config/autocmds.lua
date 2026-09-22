@@ -53,6 +53,40 @@ au({ "FocusGained", "TermClose", "TermLeave" }, {
   end,
 })
 
+-- Tell WezTerm whether this pane is running Neovim, so wezterm.lua's
+-- split_nav() forwards CTRL+h/j/k/l to Neovim instead of resizing panes: its
+-- is_vim() checks the IS_NVIM user var, and nothing was setting it.
+--
+-- WezTerm has no `cli set-user-var` subcommand in this version, so this uses the
+-- OSC 1337 SetUserVar escape. Inside tmux the sequence has to be wrapped in
+-- tmux's passthrough (allow-passthrough, on by default since tmux 3.7) or tmux
+-- swallows it. Purely additive: without WEZTERM_PANE nothing happens, so the
+-- config stays portable.
+local function set_wezterm_user_var(name, value)
+  if not vim.env.WEZTERM_PANE then
+    return
+  end
+  local seq = "\27]1337;SetUserVar=" .. name .. "=" .. vim.base64.encode(value) .. "\7"
+  if vim.env.TMUX then
+    seq = "\27Ptmux;\27" .. seq .. "\27\\"
+  end
+  pcall(function()
+    io.stdout:write(seq)
+    io.stdout:flush()
+  end)
+end
+
+au("VimEnter", {
+  callback = function()
+    -- after the TUI is up, so the escape is not swallowed by startup
+    vim.schedule(function() set_wezterm_user_var("IS_NVIM", "true") end)
+  end,
+})
+
+au("VimLeavePre", {
+  callback = function() set_wezterm_user_var("IS_NVIM", "false") end,
+})
+
 -- LSP: buffer-local keymaps plus inlay hints for every attached client
 au("LspAttach", {
   callback = function(ev)

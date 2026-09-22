@@ -301,6 +301,20 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   menu closed, falling back to indent/dedent otherwise. Verified in a real tmux
   session: `<Tab>` walks 10 -> 14 -> 17 and `<S-Tab>` returns 17 -> 14 -> 10,
   while `<Tab>` on a plain line still inserts the indent.
+- **WezTerm pass-through wired (option 2).** `wezterm.lua`'s `split_nav()`
+  forwards `CTRL+h/j/k/l` when `is_vim(pane)` is true, which reads the `IS_NVIM`
+  user var. This version of WezTerm has no `wezterm cli set-user-var`, so
+  `lua/config/autocmds.lua` emits the OSC 1337 `SetUserVar` escape on `VimEnter`
+  (`true`, scheduled so the TUI is up) and `VimLeavePre` (`false`), wrapped in
+  tmux's DCS passthrough when `$TMUX` is set. tmux 3.7 already defaults
+  `allow-passthrough` to on, so no tmux change was needed. The block is a no-op
+  without `$WEZTERM_PANE`, which keeps the config portable.
+  Verified by capturing the pane's raw output (`tmux pipe-pane` + `strings`):
+  `SetUserVar=IS_NVIM=dHJ1ZQ==` ("true") after startup and
+  `SetUserVar=IS_NVIM=ZmFsc2U=` ("false") after `:qa`, both inside `Ptmux;`.
+  Trade-off to remember: while Neovim has focus, both `CTRL+h/j/k/l` and
+  `META+h/j/k/l` reach Neovim, so WezTerm's pane resize/move bindings only apply
+  when Neovim is not focused.
 - The mini.nvim modules moved to the `nvim-mini` org. `T2` wrote the older
   `echasnovski/mini.*` URLs, which still redirect to the same commits but make
   lazy.nvim report `Origin has changed` (three entries) and refuse to update
