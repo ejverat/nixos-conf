@@ -7,16 +7,28 @@ return {
     branch = "main",
     version = false,
     lazy = false,
-    build = ":TSUpdate",
+    -- Deliberately no `build = ":TSUpdate"`. That hook rebuilds every parser
+    -- nvim-treesitter knows from its own pinned stock sources into
+    -- stdpath("data")/site/parser -- the same directory tree-sitter-manager.nvim
+    -- installs the Unreal-patched cpp grammar into, which is the whole reason
+    -- `site` is prepended below. Two owners, one directory: the 2026-09-22
+    -- update replaced the patched cpp with the stock grammar and the merged cpp
+    -- highlights query (USX.nvim's `unreal_body_macro` patterns) stopped
+    -- building, which silently left cpp/c without any highlighting. The Nix
+    -- wrapper already ships every stock grammar through the pack dir, so the
+    -- hook was redundant too. Update parsers with tree-sitter-manager's own
+    -- `:TSUpdateSync`, which installs cpp from taku25/tree-sitter-cpp.
     config = function()
       -- Two runtimepath details decide how cpp is highlighted:
       --
-      -- 1. Parsers: the Unreal suite installs patched grammars (cpp, c, ushader,
-      --    verse) into stdpath("data")/site/parser, and USX.nvim ships
-      --    after/queries/cpp queries using their extra node types
-      --    (unreal_body_macro). The Nix wrapper's stock grammars are earlier on
-      --    the runtimepath, so site must be prepended or the cpp highlights
-      --    query cannot be built at all.
+      -- 1. Parsers: tree-sitter-manager.nvim installs the Unreal-patched cpp
+      --    grammar (taku25/tree-sitter-cpp) plus the custom ushader/verse
+      --    grammars into stdpath("data")/site/parser, and pulls stock `c` in as
+      --    cpp's dependency. Only that fork has the extra node types USX.nvim's
+      --    after/queries/cpp uses (unreal_body_macro, uclass_macro,
+      --    unreal_api_specifier, ...), and nvim-treesitter's own parser dir and
+      --    the Nix wrapper pack both resolve a stock cpp, so site must be
+      --    prepended or the cpp highlights query cannot be built at all.
       -- 2. Queries: the Unreal stack also drops its fork of the cpp/c queries
       --    into stdpath("data")/site/queries, and that fork has no
       --    `; inherits: c` line -- which is exactly where cpp keywords, types
