@@ -95,6 +95,43 @@ pi auth check --provider deepseek --json                             # {"status"
 gentle-profile current                                               # model routing
 ```
 
+### 6. Shared mouse and keyboard (lan-mouse)
+
+One physical mouse and keyboard drive this host and gear5th over the LAN.
+`flake.nixosModules.lan-mouse` installs the package and opens **UDP 4242**; the
+daemon runs as the user unit `lan-mouse.service`, bound to
+`graphical-session.target` because it injects input through the compositor:
+
+```sh
+systemctl --user status lan-mouse.service --no-pager
+```
+
+The pairing is declarative — `nixosConf.lan-mouse.config` seeds
+`~/.config/lan-mouse/config.toml`, after which lan-mouse owns the file — but the
+**first authorization is a human step**: open `lan-mouse`, compare the peer's
+fingerprint (`aa:bb:cc:…`, shown in gear5th's General section) and click
+**Authorize** on the receiving side. The fingerprint is persisted into that same
+file, which is why it is never managed by Nix.
+
+Two checks worth running once:
+
+```sh
+getent hosts gear5th.local                        # needs avahi + mDNS (enabled here)
+systemctl --user show-environment | grep WAYLAND_DISPLAY
+```
+
+If the cursor does not cross back, `Mod+Escape` releases niri's
+keyboard-shortcut inhibitor (`modules/features/niri.nix`), the escape hatch a KVM
+tool needs. **`Mod` is the Super key** here (niri:
+`config.input.mod_key.unwrap_or(ModKey::Super)` on a TTY session; this config does
+not override it). While you drive gear5th from this keyboard, **gear5th's own niri
+shortcuts do not fire**: niri ignores keys injected through the virtual keyboard
+(niri#403), so `Mod+…` falls through to the window there. Application shortcuts
+are unaffected; for compositor actions on gear5th, use gear5th's own keyboard.
+That behaviour is confirmed by hand, not merely expected. Clipboard is not part of
+this: lan-mouse does not implement it. Why every libei-based alternative is
+unusable on niri is in `odd/tasks/lan-mouse-kvm.md`.
+
 ## What is deliberately not in Nix
 
 Nothing user-facing: NixOS owns the system, home-manager owns the user layer.

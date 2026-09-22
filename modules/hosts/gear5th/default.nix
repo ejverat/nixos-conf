@@ -29,6 +29,26 @@
       ripgrep
     ];
 
+    # The other side of the KVM pair: gear5th sits to the right of chopper, so
+    # chopper is the peer on the left. Seeded into
+    # ~/.config/lan-mouse/config.toml only when that file is missing; after that
+    # lan-mouse owns the file. Both backends are pinned because niri has neither
+    # an EIS server (libei) nor an InputCapture portal, which is what
+    # lan-mouse's auto-detection would try first.
+    nixosConf.lan-mouse.config = ''
+      capture_backend = "layer-shell"
+      emulation_backend = "wlroots"
+      port = 4242
+
+      [[clients]]
+      position = "left"
+      hostname = "chopper.local"
+      activate_on_startup = true
+      # Fallback for when mDNS does not answer. chopper's wlo1 address is a DHCP
+      # lease, so reserve it on the router rather than letting this list drift.
+      ips = ["192.168.1.166"]
+    '';
+
     # Exposes the `home-manager` CLI in the nix profile after the first
     # activation, so later switches are `home-manager switch --flake .#gear5th`.
     programs.home-manager.enable = true;
@@ -64,6 +84,10 @@ in {
       self.homeModules.gh
       self.homeModules.hyprpicker
       self.homeModules.kanshi
+      # Shared mouse/keyboard with chopper (software KVM over the LAN). Both
+      # hosts import the same module; the per-host side of the pair is the
+      # nixosConf.lan-mouse.config value set in hostModule above.
+      self.homeModules.lan-mouse
       self.homeModules.chromium
       self.homeModules.google-chrome
       self.homeModules.slack

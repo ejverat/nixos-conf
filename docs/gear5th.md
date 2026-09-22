@@ -111,6 +111,51 @@ getent passwd "$USER" | cut -d: -f7                  # /home/ejverat/.nix-profil
 echo "$XDG_SESSION_TYPE"                             # inside the session: wayland
 ```
 
+### 7. Shared mouse and keyboard (lan-mouse)
+
+Both hosts run niri, and niri has neither a libei/EIS server nor the
+RemoteDesktop/InputCapture portal, so lan-mouse with its `layer-shell` capture and
+`wlroots` emulation backends is the only working option here. The binary comes
+from nixpkgs through the shared `flake.homeModules.lan-mouse`; **nothing is
+installed with apt**. lan-mouse is **not in Debian** — `deskflow` is, and that is
+the one that cannot work on niri.
+
+The daemon runs as the systemd user unit `lan-mouse.service`, bound to
+`graphical-session.target`:
+
+```sh
+systemctl --user status lan-mouse.service --no-pager
+```
+
+Two things the flake cannot do for you:
+
+1. If a host firewall runs on this machine (nftables/ufw), allow **UDP 4242**.
+   The flake only opens that port on chopper.
+2. First-run authorization is interactive: open `lan-mouse`, compare the peer's
+   fingerprint (`aa:bb:cc:…`, shown in the General section of the peer) and click
+   **Authorize** on the receiving side. lan-mouse then persists the fingerprint
+   into `~/.config/lan-mouse/config.toml`, which is why that file is seeded once
+   and never managed by Nix.
+
+mDNS is not guaranteed on Debian, so check that the peer's `.local` name resolves
+(needs avahi + libnss-mdns):
+
+```sh
+getent hosts chopper.local
+```
+
+If that fails, the `ips` list in the config is the fallback, and both hosts'
+addresses are DHCP leases that should be reserved on the router.
+
+**`Mod` is the Super key** (niri: `config.input.mod_key.unwrap_or(ModKey::Super)`
+on a TTY session, and this config does not override it). One limitation to expect:
+while you drive this machine from chopper's keyboard, **gear5th's own niri
+shortcuts do not fire** — niri ignores keys injected through the virtual keyboard
+(niri#403), so `Mod+…` falls through to the window. Shortcuts the application
+handles itself are unaffected; for compositor actions, use gear5th's own keyboard.
+
+There is no clipboard sharing: lan-mouse does not implement it.
+
 ## What is deliberately not in Nix here
 
 - Kernel, GPU drivers, firmware, display manager and systemd system services:
