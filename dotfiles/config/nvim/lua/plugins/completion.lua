@@ -6,7 +6,12 @@ return {
   {
     "saghen/blink.cmp",
     event = { "InsertEnter", "CmdlineEnter" },
-    version = false,
+    -- Track the v1 line, not `main`: upstream main is v2 dev, which requires
+    -- Neovim 0.12+ AND the separate `saghen/blink.lib` package, and moved the
+    -- Rust matcher from target/release to lib/. v1.10.2 (`78336bc`, branch `v1`)
+    -- is the commit the tracked lazy-lock.json pins; a v1 tag keeps
+    -- `:Lazy update` from dragging the engine into an unreleased major.
+    version = "1.*",
     dependencies = { "rafamadriz/friendly-snippets" },
     -- The Rust fuzzy matcher lives in target/release, which is gitignored
     -- upstream, so a fresh clone needs this build (cargo is on the wrapper
