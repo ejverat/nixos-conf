@@ -35,6 +35,10 @@
       # hosts stay on one version and the shared presets keep resolving.
       self.nixosModules.prusaslicer
       self.nixosModules.secrets
+      # Mouse and keyboard sharing with gear5th (shared physical input over the
+      # LAN). System layer: the package plus the UDP 4242 port lan-mouse listens
+      # on; the user layer and the per-host client entry are below.
+      self.nixosModules.lan-mouse
 
       # home-manager as a NixOS module: chopper consumes the same shared
       # flake.homeModules.* as gear5th, so user-level config has one source of
@@ -67,6 +71,10 @@
           self.homeModules.gh
           self.homeModules.hyprpicker
           self.homeModules.kanshi
+          # Shared mouse/keyboard with gear5th. Same module gear5th imports, so
+          # the pairing has one source of truth; the per-host side is the
+          # nixosConf.lan-mouse.config value below.
+          self.homeModules.lan-mouse
           self.homeModules.chromium
           self.homeModules.google-chrome
           self.homeModules.slack
@@ -117,6 +125,32 @@
           profile laptop {
             output eDP-1 enable scale 1.0 mode 1366x768@60.003Hz position 0,0
           }
+        '';
+
+        # The other side of the KVM pair. chopper sits to the left of gear5th, so
+        # gear5th is the peer on the right. This text is seeded into
+        # ~/.config/lan-mouse/config.toml only when that file does not exist;
+        # afterwards lan-mouse owns the file and persists authorized peer
+        # fingerprints there.
+        nixosConf.lan-mouse.config = ''
+          # Both backends are pinned rather than auto-detected: lan-mouse probes
+          # the libei / InputCapture-portal capture backend first, and niri has no
+          # EIS server and no InputCapture portal, so only layer-shell + wlroots
+          # can succeed on this compositor.
+          capture_backend = "layer-shell"
+          emulation_backend = "wlroots"
+          port = 4242
+
+          [[clients]]
+          position = "right"
+          hostname = "gear5th.local"
+          activate_on_startup = true
+          # Fallback for when mDNS does not answer. gear5th answered on both of
+          # these addresses during setup, but both hosts are on DHCP leases: a
+          # reservation on the router is what stops this list from drifting.
+          # The peer's fingerprint still has to match before anything is
+          # accepted.
+          ips = ["192.168.1.159", "192.168.1.114"]
         '';
 
         home.username = "ejverat";
