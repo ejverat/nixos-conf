@@ -142,11 +142,14 @@ return {
     cmd = {
       "Pioinit",
       "Piorun",
-      "Piocmd",
-      "Piolib",
       "Piomon",
       "Piodebug",
-      "Piodb",
+      "Piolib",
+      "Piolsserial",
+      "Piocmdf",
+      "Piocmdh",
+      "PioLSP",
+      "PioTermList",
     },
   },
 }

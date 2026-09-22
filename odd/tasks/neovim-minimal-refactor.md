@@ -337,6 +337,19 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   Trade-off to remember: while Neovim has focus, both `CTRL+h/j/k/l` and
   `META+h/j/k/l` reach Neovim, so WezTerm's pane resize/move bindings only apply
   when Neovim is not focused.
+- **lazy.nvim validates `cmd` names: they must start with an uppercase letter.**
+  `T5` shipped `cmd = { "RustLsp", "rustaceanvim" }` and the lowercase entry made
+  lazy fail with `Invalid command name (must start with uppercase)` at startup,
+  which also aborted that plugin's handlers. Auditing every `cmd` declaration
+  against the commands the plugins actually define found two more wrong names
+  from earlier slices: `ColortilsContinueNamedColor` (colortils only defines
+  `Colortils`) and platformio's `Piocmd`/`Piodb` (the real ones are `Piocmdf`,
+  `Piocmdh`, `PioLSP`, `PioTermList`, `Piolsserial`). `:RustLsp` is correct but
+  only exists after rust-analyzer attaches, which the plugin documents, so
+  `ft = rust` is the trigger that matters. Platformio's own commands only exist
+  once its `cond` is true (or through its `:Pioinit` flow), so the list is inert
+  in the common case: the forced-load audit shows them absent, which is expected
+  rather than broken.
 - The mini.nvim modules moved to the `nvim-mini` org. `T2` wrote the older
   `echasnovski/mini.*` URLs, which still redirect to the same commits but make
   lazy.nvim report `Origin has changed` (three entries) and refuse to update

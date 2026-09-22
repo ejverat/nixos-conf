@@ -9,7 +9,7 @@ return {
   },
   {
     "max397574/colortils.nvim",
-    cmd = { "Colortils", "ColortilsContinueNamedColor" },
+    cmd = "Colortils",
     opts = {
       cmd = "Colortils",
     },
