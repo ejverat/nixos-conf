@@ -1,8 +1,6 @@
-tt.*
-.tests
-doc/tags
-debug
-.repro
-foo.*
-*.log
-data
+# Nothing in this directory is generated: it is materialized read-only from the
+# Nix store, and Neovim writes its state to ~/.config/nvim instead. Keep only
+# editor/OS noise out of git.
+*.swp
+*.swo
+.DS_Store

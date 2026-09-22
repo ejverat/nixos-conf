@@ -209,10 +209,27 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       rustaceanvim, a `.md` loads markview + autotag, `:Oil` loads oil and the
       `<C-/>` mapping loads toggleterm; the `:Dotnet`, `:Oil`, `:Neogen`,
       `:Colortils` and `:ToggleTerm` stubs all exist before loading.
-- [ ] T6 Lockfile policy + docs: single source of truth for
-      `lazy-lock.json`, documented update flow (runtime -> repo), and a short
-      `docs/` note or README section for the new layout. Evidence: lockfile
-      identical in both locations after an update cycle.
+- [x] T6 Lockfile policy and layout docs. Done 2026-09-21. lazy.nvim writes
+      `stdpath("config")/lazy-lock.json` = `~/.config/nvim/lazy-lock.json` (its
+      default), which cannot be this repository because the config directory is
+      read-only from the store. The tracked `dotfiles/config/nvim/lazy-lock.json`
+      is the pinned snapshot, and `scripts/nvim-lock.sh` bridges them:
+      `sync` (runtime -> repo, after `:Lazy update`), `seed` (repo -> runtime,
+      before `:Lazy restore` on a fresh machine, with a `.bak` when they differ)
+      and `check` (sorted comparison, exit 1 on drift).
+      Also cleaned up and documented: `lazyvim.json` (LazyVim's state file) and
+      `.neoconf.json` (neoconf is not installed) are gone, `.gitignore` is down
+      to editor noise, and `README.md` now documents the layout (entry point,
+      the read-only config vs writable `~/.config/nvim` split, the two rtp
+      switches the wrapper needs, Nix-provided servers vs lazy-provided plugins),
+      the lockfile policy and the fixtures.
+      Evidence: the tracked lockfile was 76 entries of the LazyVim era and is now
+      the 56 entries that actually run (no `LazyVim`, `bufferline`, `catppuccin`,
+      `csharp.nvim`, `dressing`, `flash`, `snacks`, `telescope`, `mason`);
+      `check` reports `in sync (56 entries)` and exits 0; `seed` is a no-op when
+      both copies match (no backup written); no arguments prints the usage and
+      exits 2. `~/.config/nvim/lazyvim.json` remains in the writable state
+      directory and nothing reads it any more.
 - [ ] T7 Close-out: final `--startuptime` and plugin count comparison against
       the baseline, feature doc updated, memory recorded.
 
