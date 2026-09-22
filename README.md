@@ -202,6 +202,38 @@ Presets reference system preset names through their `inherits` chains, so every
 host sharing them should use the same `nixpkgs-orca` pin. The flake gives that
 for free.
 
+## Shared mouse and keyboard (lan-mouse)
+
+chopper and gear5th share one physical mouse and keyboard over the LAN with
+lan-mouse, and it is the only tool that can work here: every alternative routes
+Wayland input through **libei** (an EIS server on the compositor) or through the
+`RemoteDesktop`/`InputCapture` portals, and niri provides neither — Deskflow
+requires `libei >= 1.3` plus `libportal >= 0.9.1`, Input Leap was archived in
+2025 and Barrier never left X11. What niri does implement is the wlroots input
+protocol set (`wlr-virtual-pointer` + `virtual-keyboard` to inject, `layer-shell`
++ `pointer-constraints` to capture), which is what lan-mouse's `wlroots` and
+`layer-shell` backends use. The tool-by-tool evidence is in
+`odd/tasks/lan-mouse-kvm.md`.
+
+- `flake.homeModules.lan-mouse` is imported by **both** hosts, so the pairing has
+  one source of truth; each host declares its own side of the boundary through
+  `nixosConf.lan-mouse.config` (chopper sits to the left, gear5th to the right).
+  Both configs pin the two backends, because lan-mouse's capture auto-detection
+  probes the libei/portal path first and that can only fail on niri.
+- The config is **seeded, never linked**: lan-mouse rewrites
+  `~/.config/lan-mouse/config.toml` when it persists an authorized peer
+  fingerprint, so a store symlink would break authorization. Same policy as the
+  slicer presets: the file is copied only when it is missing.
+- `flake.nixosModules.lan-mouse` adds the package and **UDP 4242** to chopper's
+  firewall, and the daemon runs as the user unit `lan-mouse.service` bound to
+  `graphical-session.target` — it injects through the compositor, so it must not
+  start earlier.
+- Manual, once per pair of machines: authorize the peer's DTLS fingerprint in the
+  GUI (the daemon holds the listener and the GUI attaches to it), and on gear5th
+  open UDP 4242 if a host firewall is running. Both host docs carry the steps.
+- No clipboard: lan-mouse does not implement it. That would require an EIS server
+  on at least one side, i.e. a compositor other than niri.
+
 ## Roadmap
 
 1. **More apps through the same mechanism**, in batches, when needed on both
