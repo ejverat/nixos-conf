@@ -179,8 +179,9 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
       work; `:messages` is clean. The interactive menu itself (type a prefix in
       insert mode, `<C-y>` to accept, `<C-l>`/`<C-h>` to move between snippet
       placeholders, `<C-n>`/`<C-p>` to pick) is the user-facing check; the
-      placeholder jumps were verified headlessly by calling the mapping
-      callbacks.
+      placeholder jumps were verified end to end in a real `tmux` session
+      (`send-keys`, cursor 10 -> 14 -> 17 forward and back with `<C-h>`), which
+      is also what exposed the fold bug recorded below.
 - [ ] T5 Deferred loading for the heavy stacks: `dap` (cmd/keys),
       `image.nvim` + `molten` (`ft = python`), Unreal suite (`ft = {c,cpp}`,
       `cmd = UDEV`), `cmake-tools` (`ft = cmake`), `platformio` (keep `cond`),
@@ -274,6 +275,17 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   for C++ projects (the fixture ships a hand-written one; make-based projects
   can use `bear`/`compiledb`).
 
+- **Tree-sitter folds silently broke snippet placeholder jumps.** The
+  `FileType` autocmd set `foldmethod=expr` + `foldexpr` with the default
+  `foldlevel=0`, so every fold is closed the moment it appears. A cursor jump
+  into a closed fold is a no-op (`foldopen` does not include jumps), so
+  `vim.snippet.jump` did nothing on any multi-line snippet -- and the same
+  would happen to any other jump into a folded region (a `gd` into a folded
+  function, for example). `treesitter.lua` now sets `foldlevel = 99`: folds
+  still exist and `zc`/`zM`/`zR` work, but nothing starts hidden. This predates
+  the feature (LazyVim enabled the same folds) and was invisible to the headless
+  sandbox, where folds are never computed: it took a real `tmux` session driven
+  with `send-keys` to see the `+--  3 lines` fold and the SELECT mode.
 - The mini.nvim modules moved to the `nvim-mini` org. `T2` wrote the older
   `echasnovski/mini.*` URLs, which still redirect to the same commits but make
   lazy.nvim report `Origin has changed` (three entries) and refuse to update

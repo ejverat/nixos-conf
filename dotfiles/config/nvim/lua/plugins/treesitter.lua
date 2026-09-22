@@ -43,8 +43,15 @@ return {
           if ok and TS.indentexpr then
             vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
           end
+          -- Folds stay available (zc/za/zM) but start open: with the default
+          -- foldlevel = 0 every fold is closed as soon as it appears, and a
+          -- cursor jump into a closed fold is a no-op (foldopen does not
+          -- include jumps). That silently broke snippet placeholder jumps on
+          -- any multi-line snippet, and would do the same for other jumps into
+          -- folded regions.
           vim.wo.foldmethod = "expr"
           vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+          vim.wo.foldlevel = 99
         end,
       })
     end,
