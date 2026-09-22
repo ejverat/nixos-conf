@@ -132,6 +132,20 @@ mechanism that let the drift go unnoticed: with a writable
   -> no message; `require('blink.cmp.fuzzy.rust')` -> true, so the Rust matcher,
   not the Lua fallback, is the live implementation.
 
+## Delivery
+
+Branch `fix/nvim-plugin-layer-drift` was renamed from `fix/nvim-blink-cmp-pin`
+because it now carries both plugin-layer repairs; the same branch and issue
+cover `odd/tasks/neovim-treesitter-parser-clobber.md`.
+
+- Issue #57 (`fix(nvim): pin blink.cmp to v1 and restore cpp highlighting`,
+  labels `type:bug` + `status:approved`)
+- Commits `3188a99` (spec pin), `1ceaad8` (lockfile sync), `dc9d150` (docs)
+- PR #58 against `main`, open and MERGEABLE, labels `type:bug` +
+  `size:exception`, body links `Closes #57`
+- The repository has no CI workflows, so no checks run; merge remains the user's
+  decision.
+
 ## Close-out
 
 The reported failure is gone and its two enabling conditions are closed: the

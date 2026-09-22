@@ -141,6 +141,19 @@ revision and returns false while they match, so a stray nvim-treesitter
 `:TSUpdate` skips cpp instead of rebuilding it from the stock source. Nothing in
 the parser load path reads it.
 
+## Delivery
+
+Same branch, issue and PR as `odd/tasks/neovim-blink-pin.md`: the
+2026-09-22 update caused both defects, so they ship together.
+
+- Issue #57 (`fix(nvim): pin blink.cmp to v1 and restore cpp highlighting`,
+  labels `type:bug` + `status:approved`)
+- Commits `93ad550` (spec fix), `fb24e44` (docs)
+- PR #58 against `main`, open and MERGEABLE, labels `type:bug` +
+  `size:exception`, body links `Closes #57`
+- The repository has no CI workflows, so no checks run; merge remains the user's
+  decision.
+
 ## Close-out
 
 The fzf-lua warning is gone, cpp/c highlighting is actually attached again, and
