@@ -88,10 +88,27 @@ map("n", "<leader>ud", function()
   vim.notify("diagnostics " .. (not enabled and "on" or "off"))
 end, { desc = "Toggle diagnostics" })
 
--- Snippet placeholders. blink.cmp expands snippets with the native
--- vim.snippet engine, and its own snippet_forward/backward bindings only exist
--- while its completion menu is open, so bind the native jumps here: they work
--- with the menu closed and blink lets them through while it is open.
+-- Snippet placeholders. <C-i> and <Tab> are the same key in a terminal, so
+-- <Tab>/<S-Tab> are the pair that always works: WezTerm reserves CTRL+h/l for
+-- pane resize in this setup (wezterm.lua split_nav, and its IS_NVIM pass-through
+-- depends on a user var nothing sets), so <C-l>/<C-h> never reach Neovim.
+-- blink's own <Tab>/<S-Tab> commands only exist while its menu is open; these
+-- work in both states and otherwise fall back to the normal indent/dedent.
+map({ "i", "s" }, "<Tab>", function()
+  if vim.snippet.active({ direction = 1 }) then
+    vim.snippet.jump(1)
+    return ""
+  end
+  return vim.api.nvim_replace_termcodes("<Tab>", true, false, true)
+end, { expr = true, desc = "Next snippet placeholder or Tab" })
+map({ "i", "s" }, "<S-Tab>", function()
+  if vim.snippet.active({ direction = -1 }) then
+    vim.snippet.jump(-1)
+    return ""
+  end
+  return vim.api.nvim_replace_termcodes("<S-Tab>", true, false, true)
+end, { expr = true, desc = "Previous snippet placeholder or Shift-Tab" })
+
 map({ "i", "s" }, "<C-l>", function()
   if vim.snippet.active({ direction = 1 }) then
     vim.snippet.jump(1)

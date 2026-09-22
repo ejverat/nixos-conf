@@ -286,6 +286,21 @@ small; `vim.pack` in 0.12.5 still has no lockfile.
   the feature (LazyVim enabled the same folds) and was invisible to the headless
   sandbox, where folds are never computed: it took a real `tmux` session driven
   with `send-keys` to see the `+--  3 lines` fold and the SELECT mode.
+- **`<C-l>`/`<C-h>` never reach Neovim in this setup: WezTerm owns them.**
+  `wezterm.lua` binds `CTRL+h/j/k/l` through `split_nav("resize", ...)` to
+  resize panes, and its pass-through branch depends on `is_vim(pane)`, which
+  reads an `IS_NVIM` user var that nothing in the config sets (the comment says
+  "set by the plugin", but no plugin is loaded). So the terminal keeps the key
+  and Neovim never sees it -- the same is true for the `<C-h/j/k/l>` *window*
+  navigation this config inherited from LazyVim. `tmux` is not involved: its
+  root table only binds them in copy-mode.
+  The working pair is therefore `<Tab>`/`<S-Tab>` (and `<C-i>` **is** `<Tab>`,
+  which is what the user discovered): blink's preset binds them to
+  `snippet_forward`/`snippet_backward` while its menu is open, and
+  `lua/config/keymaps.lua` now also maps them natively so they work with the
+  menu closed, falling back to indent/dedent otherwise. Verified in a real tmux
+  session: `<Tab>` walks 10 -> 14 -> 17 and `<S-Tab>` returns 17 -> 14 -> 10,
+  while `<Tab>` on a plain line still inserts the indent.
 - The mini.nvim modules moved to the `nvim-mini` org. `T2` wrote the older
   `echasnovski/mini.*` URLs, which still redirect to the same commits but make
   lazy.nvim report `Origin has changed` (three entries) and refuse to update
