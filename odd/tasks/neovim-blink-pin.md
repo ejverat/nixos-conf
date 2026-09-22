@@ -91,24 +91,59 @@ mechanism that let the drift go unnoticed: with a writable
 
 ## Tasks
 
-- [ ] T1 Branch and task document.
-- [ ] T2 Pin `saghen/blink.cmp` to `version = "1.*"` with the reason in a
-      comment.
-- [ ] T3 Rebuild home-manager on gear5th and confirm the pin is materialized in
-      the store tree.
-- [ ] T4 Move the stale `~/.config/nvim` symlink aside and seed a writable
-      runtime lockfile from the tracked copy.
-- [ ] T5 Restore the six drifted plugins to the tracked pins and rebuild blink's
-      Rust matcher.
-- [ ] T6 Verify and close out.
+- [x] T1 Branch `fix/nvim-blink-cmp-pin` and this task document. Done 2026-09-22.
+- [x] T2 Pin `saghen/blink.cmp` to `version = "1.*"` with the reason and the v1
+      commit in a comment. Done 2026-09-22, commit `3188a99`.
+- [x] T3 Rebuild home-manager on gear5th and confirm the pin is materialized in
+      the store tree. Done 2026-09-22.
+- [x] T4 Move the stale `~/.config/nvim` symlink aside and seed a writable
+      runtime lockfile from the tracked copy. Done 2026-09-22.
+- [x] T5 Restore the six drifted plugins to the tracked pins and rebuild blink's
+      Rust matcher. Done 2026-09-22.
+- [x] T6 Verify and close out. Done 2026-09-22.
 
 ## Verification evidence
 
-- T2: file read-back of `lua/plugins/completion.lua`.
-- T3: `home-manager switch --flake ~/nixos-conf#gear5th` exit status and the
-  materialized `completion.lua` in the store tree.
-- T4: `test -w ~/.config/nvim/lazy-lock.json`; `nvim-lock.sh check` exit status.
-- T5: `git rev-parse HEAD` per plugin compared against the lockfile; blink's
-  `target/release/libblink_cmp_fuzzy.so` present.
-- T6: headless `require('blink.cmp')` returns true, `nvim --headless` leaves an
-  empty `:messages`, and the drift audit reports zero drifted plugins.
+- T2: read-back of `dotfiles/config/nvim/lua/plugins/completion.lua:14` shows
+  `version = "1.*"`; the header comment keeps the v1 API/Rust-matcher note true.
+- T3: `~/.nix-profile/bin/home-manager switch --flake ~/nixos-conf#gear5th`
+  exited 0 with no activation error; the materialized tree resolves to
+  `/nix/store/8n28rnvwfygkp3r8v4x6w12dn8i0aj4h-hm_nvim/lua/plugins/completion.lua`,
+  whose line 14 is `version = "1.*"`.
+- T4: `~/.config/nvim` was the symlink `../.dotfiles/config/nvim` (2025-07-19); it
+  moved to `~/.config/nvim.pre-hm-symlink.bak` and `scripts/nvim-lock.sh seed`
+  wrote a real `~/.config/nvim/lazy-lock.json` (56 entries, byte-identical to the
+  tracked copy). `test -w` now passes and `nvim-lock.sh check` reports
+  `in sync (56 entries)`.
+- T5: `nvim --headless '+Lazy! restore' +qa` exited 0; blink.cmp logged
+  `78336bc chore: bump version to 1.10.2` and rebuilt its matcher
+  (`Finished \`release\` profile [optimized]`), leaving
+  `target/release/libblink_cmp_fuzzy.so` (Sep 22 02:24). lazy.nvim then rewrote
+  the now-writable runtime lockfile from real state, which corrected one stale
+  field (`rustaceanvim` branch `main` -> `master`; same commit `3ace64f`), and
+  that correction is what T5 syncs into the tracked copy.
+  `nvim-platformio.lua` was still one commit behind after the restore because its
+  `cond` disables it outside a PlatformIO project, so lazy.nvim skips it; it was
+  checked out to the locked `d5143c8` by hand. Drift audit: **0 of 56** plugins
+  off their pin.
+- T6: headless evidence, all exit 0 with an empty `:messages`:
+  `require('blink.cmp')` -> true; `:Lazy! load blink.cmp` -> no message;
+  `nvim_exec_autocmds('CmdlineEnter', {})` (the exact event in the bug report)
+  -> no message; `require('blink.cmp.fuzzy.rust')` -> true, so the Rust matcher,
+  not the Lua fallback, is the live implementation.
+
+## Close-out
+
+The reported failure is gone and its two enabling conditions are closed: the
+spec can no longer follow `main` into blink.cmp v2 dev, and the runtime
+lockfile is writable again, so `:Lazy update` records what it resolves and
+`scripts/nvim-lock.sh sync` / `check` mean what their header claims.
+
+Left undone on purpose:
+
+- No push and no PR: delivery stays a human decision.
+- The audit covers every locked plugin, not just the six named here, and reports
+  0 of 56 off their pin; `nvim-lock.sh check` is the routine that keeps it that
+  way.
+- Migrating to blink.cmp v2 stays a separate, deliberate decision (see the
+  rejected option B).

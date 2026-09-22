@@ -88,6 +88,8 @@ grep -c "$HOME/.nix-profile/bin/zsh" /etc/shells   # registered for chsh
 ~/.nix-profile/bin/home-manager --version
 nix flake show "path:$HOME/nixos-conf" --json >/dev/null   # flake evaluates
 ls -l ~/.dotfiles/config/nvim ~/.config/noctalia/settings.json   # symlinks
+readlink ~/.config/nvim                  # must be empty: a real dir, not a symlink
+cd ~/nixos-conf && ./scripts/nvim-lock.sh check          # "in sync"
 cd ~/nixos-conf && git status --short && git branch --show-current
 ```
 
@@ -294,7 +296,45 @@ lazy.nvim clones plugins on first start: needs `git`. Some plugins compile:
 command -v gcc make || sudo apt install build-essential
 ```
 
-### 6.10 Lock screen rejects the password
+### 6.10 nvim plugins drifted from the lockfile / blink.cmp asks for `blink.lib`
+
+**Symptom:** on startup (or on `InsertEnter`/`CmdlineEnter`)
+`Failed to source .../blink.cmp/plugin/blink-cmp.lua ... blink.cmp v2 requires
+"saghen/blink.lib"`.
+
+**Cause:** two independent traps.
+
+1. The plugin spec followed upstream `main` (`version = false`), and upstream
+   `main` became blink.cmp v2 (dev), which needs Neovim 0.12+ and the separate
+   `saghen/blink.lib` package. The v1 pin lives on upstream branch `v1`, so the
+   lockfile cannot hold a spec that tracks the branch. Fixed by pinning the spec
+   to `version = "1.*"`.
+2. `stdpath("config")` (`~/.config/nvim`) was a **stale symlink** created by the
+   pre-home-manager installer pointing at the read-only store materialization of
+   the config, so lazy.nvim could never write
+   `~/.config/nvim/lazy-lock.json`. Updates therefore moved plugins without
+   being recorded, and `scripts/nvim-lock.sh sync`/`seed` silently did nothing
+   useful. `~/.config/nvim` is **not** a home-manager path (only
+   `~/.dotfiles/config/nvim` is), so home-manager neither creates nor removes
+   it: check it by hand.
+
+```sh
+readlink ~/.config/nvim            # must NOT print ../.dotfiles/config/nvim
+test -w ~/.config/nvim/lazy-lock.json && echo writable
+cd ~/nixos-conf
+mv ~/.config/nvim ~/.config/nvim.pre-hm-symlink.bak   # only if it is a symlink
+./scripts/nvim-lock.sh seed        # tracked pins -> writable runtime copy
+nvim --headless '+Lazy! restore' +qa                   # checkout + rebuild
+./scripts/nvim-lock.sh check       # must report "in sync"
+```
+
+Any plugin still off its pin afterwards is one lazy.nvim skips on purpose (a
+`cond`-disabled plugin, e.g. `nvim-platformio.lua` outside a PlatformIO
+project); pin it with `git -C ~/.local/share/nvim/lazy/<plugin> checkout
+<lockfile-commit>`. Full analysis and evidence:
+`odd/tasks/neovim-blink-pin.md`.
+
+### 6.11 Lock screen rejects the password
 
 nixpkgs' `pam_unix.so` execs `/run/wrappers/bin/unix_chkpwd` (the setuid wrapper
 path NixOS creates). On Debian that path is missing, so a user process cannot
@@ -311,7 +351,7 @@ journalctl --user -u niri -e | grep -i -E 'pam|auth'  # locker log if it still f
 
 Re-run the script after nixpkgs lock updates (the store hash changes).
 
-### 6.11 GDM does not start at boot
+### 6.12 GDM does not start at boot
 
 Two Debian-specific traps, both handled by `scripts/install-niri-session.sh`:
 
