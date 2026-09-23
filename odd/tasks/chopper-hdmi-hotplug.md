@@ -164,9 +164,8 @@ be from inside this session.
 - Issue #61 (`fix(chopper): the HDMI monitor detects but stays black after a
   hotplug`, labels `type:bug` + `status:approved`).
 - Branch `fix/chopper-hdmi-hotplug` off `main` at `a4efce2`.
-- Commits: `fix(chopper): disable nvidia-drm fbdev to unblock HDMI hotplug`
-  (host module + this record), `docs(chopper): document the HDMI hotplug
-  workaround and the real GPU topology` (runbook), and a close-out commit that
-  fills in the hashes.
+- Commits `ba5d7cf` (host module + this record) and `f4818d4` (runbook), plus the
+  `docs(chopper)` close-out commit that adds this section.
+- PR #62 against `main`, label `type:bug`, body links `Closes #61`.
 - The repository has no CI workflows, so no checks run; merge remains the user's
   decision.
