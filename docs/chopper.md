@@ -7,7 +7,10 @@ wipe* has to come from a backup.
 ## What this host is
 
 - NixOS (x86_64-linux), hostname `chopper`, user `ejverat` (`sudo` + `wheel`),
-  ASUS laptop with Intel CPU + hybrid NVIDIA/AMD graphics.
+  ASUS laptop with Intel + NVIDIA hybrid graphics: an Intel UHD 630 (i915) that
+  owns the internal panel and is the render node, and a GTX 1650 Mobile that
+  owns the HDMI port. The two are not interchangeable; see *External monitor*
+  below.
 - Flake entry point: `nixosConfigurations.chopper` (`modules/hosts/chopper/`),
   activated with `nixos-rebuild switch`.
 - User environment: home-manager as a **NixOS module**, importing the same
@@ -132,6 +135,51 @@ That behaviour is confirmed by hand, not merely expected. Clipboard is not part 
 this: lan-mouse does not implement it. Why every libei-based alternative is
 unusable on niri is in `odd/tasks/lan-mouse-kvm.md`.
 
+## External monitor (HDMI)
+
+The HDMI port is wired to the **NVIDIA** GPU, not to the Intel iGPU that owns
+`eDP-1`, and niri renders on i915 and copies the frame across. That cross-GPU
+destination is the fragile part of this host, so it is worth knowing where the
+pieces are:
+
+```sh
+cat /sys/class/drm/card1-HDMI-A-1/status      # -> connected / disconnected
+niri msg outputs                               # what the compositor sees
+niri msg version                               # cross-check in bug reports
+grep nvidia-drm /etc/modprobe.d/nixos.conf     # -> fbdev=0 modeset=1
+```
+
+The module options come from `modprobe.d`, not from the kernel command line:
+the driver is not in `/proc/cmdline`.
+
+**Known issue: the panel detects but stays black after a hotplug.** `nvidia-drm`
+rejects the compositor's atomic commit to the freshly attached output —
+`Failed to initialize semaphore for plane fence`, then
+`Failed to apply atomic modeset. Error code: -11` (`EAGAIN`) — niri does not
+retry, and the kernel reports `Flip event timeout on head 0` a few seconds later.
+The connector still reads `connected`, which is why it looks detected.
+The host module therefore disables `nvidia-drm`'s fbdev emulation
+(`hardware.nvidia.moduleParams.nvidia-drm.fbdev = lib.mkForce 0`), the one
+anomaly present in the failing trace and absent from the working ones. Full
+reasoning and the ranked fallbacks are in `odd/tasks/chopper-hdmi-hotplug.md`.
+
+If it still happens, retry the commit without restarting the session:
+
+```sh
+niri msg output HDMI-A-1 off && niri msg output HDMI-A-1 on
+```
+
+Logging out and back in also works, but only because it buys a second attempt —
+the first commit after a restart frequently fails the same way. Check the kernel
+log to tell the two apart:
+
+```sh
+journalctl -k -b 0 | grep nv_drm
+```
+
+Anything matching `nv_drm_atomic` means the driver refused again. Because the
+race is intermittent, one clean hotplug is weak evidence; repeat it and re-check.
+
 ## What is deliberately not in Nix
 
 Nothing user-facing: NixOS owns the system, home-manager owns the user layer.
@@ -153,3 +201,5 @@ git log --oneline -5                     # last known-good squashes on main
 - `README.md` — repo layout, PR conventions, roadmap.
 - `odd/tasks/chopper-home-manager.md` — why chopper consumes the shared layer and
   which parts stay system-side.
+- `odd/tasks/chopper-hdmi-hotplug.md` — the HDMI hotplug failure, its evidence and
+  the fallbacks if the fbdev override does not hold.

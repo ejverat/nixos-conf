@@ -307,6 +307,23 @@
       open = true;
       nvidiaSettings = true;
       #package = config.boot.kernelPackages.nvidiaPackages.stable;
+
+      # HDMI-A-1 hangs off the dGPU (0000:01:00.0) while niri renders on i915,
+      # so the external output is a cross-GPU destination. nvidia-drm's fbdev
+      # emulation claims that connector as a console framebuffer the moment the
+      # hotplug event creates it, and it is the one anomaly present in the only
+      # trace where niri's atomic commit to it was rejected:
+      #   nvidia 0000:01:00.0: [drm] fb1: nvidia-drmdrmfb frame buffer device
+      #   *ERROR* Failed to initialize semaphore for plane fence
+      #   *ERROR* Failed to apply atomic modeset.  Error code: -11  (EAGAIN)
+      # niri never retries, so the monitor detects but stays black until the
+      # compositor restarts. nixpkgs sets nvidia-drm.fbdev=1 unconditionally for
+      # modesetting.enable with driver >= 545 and offers no option for it, hence
+      # the moduleParams hatch; mkForce is required because a plain value
+      # conflicts under the attrsOf (attrsOf raw) type. The console is
+      # unaffected: fbcon is bound to i915drmfb (fb0), not to this one.
+      # See odd/tasks/chopper-hdmi-hotplug.md.
+      moduleParams.nvidia-drm.fbdev = lib.mkForce 0;
     };
 
     # USB serial adapters (CH340/CH341) - allow non-root access
