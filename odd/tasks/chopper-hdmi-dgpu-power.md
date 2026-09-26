@@ -219,4 +219,45 @@ separate commit once the new configuration holds.
 
 ## Delivery
 
-_(pending)_
+- Branch `fix/chopper-hdmi-dgpu-power` off `main` at `8937ad7`, rebased onto
+  `origin/main` at `e25b514` on 2026-09-30, **not pushed**.
+- `87ae491` — `fix(chopper): enable NVIDIA power management for the dGPU HDMI
+  output`: the host module plus this record.
+- `96ca3c0` — `docs(chopper): correct the HDMI black-screen mechanism`: the
+  runbook section and the superseded banner on the old record.
+- one more commit, `docs(odd): close out chopper-hdmi-dgpu-power`, carries this
+  delivery section; it is named rather than pinned because amending it changes
+  its own hash.
+- The rebase changed only the parents: the tree is identical, so the deployed
+  generation built from the pre-rebase `32aec4e` is still the same configuration.
+- No issue and no pull request yet. The change is live on the host and has held
+  through 2026-09-26 to 09-30 on light use, which is still not a normal week of
+  suspend/resume; the PR body should say that rather than claim a fix. Repo
+  convention when it comes: issue with `type:bug` + `status:approved`, branch as
+  above, PR linking `Closes #N`.
+
+## Close-out
+
+- Status: implemented, deployed and holding — **not yet confirmed** as a fix.
+- The running generation is the one built from `32aec4e` (now `87ae491`); the
+  previous generation is still available with
+  `sudo nixos-rebuild --rollback switch`.
+- Watch after every resume and hotplug:
+
+  ```sh
+  journalctl -k -b 0 | grep -E "nv_drm|Xid"
+  ```
+
+  Any `nv_drm_atomic` line means this is not the answer yet.
+- Next fallbacks, one variable at a time:
+  `hardware.nvidia.moduleParams.nvidia.NVreg_DynamicPowerManagement = 0`, then
+  `hardware.nvidia.open = false` or another driver branch.
+- Cleanup pending: drop `moduleParams.nvidia-drm.fbdev = lib.mkForce 0`, which is
+  falsified but harmless, in its own commit.
+- **The local-branch strategy is already leaking (2026-09-30).** Generations 143,
+  144 and 145 (2026-09-27 18:52, 19:09 and 2026-09-30 15:01) were built from
+  trees without this fix and carry `NVreg=0`; only generation 142, the booted
+  one, has it. The running kernel still preserves VRAM because the parameter is
+  load-time, so the next reboot from the current (145) default silently drops it
+  and the panel can go black again. Merge this into `main`, or rebuild from this
+  branch, before that reboot.
