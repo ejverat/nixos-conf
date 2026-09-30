@@ -14,9 +14,8 @@ return {
     ft = "python",
     build = ":UpdateRemotePlugins",
     init = function()
-      -- WezTerm no renderiza el kitty graphics protocol (falla con y sin tmux),
-      -- así que image.nvim usa el backend `ueberzug` (ueberzugpp) para el
-      -- output inline de matplotlib.
+      -- The provider is `image.nvim`, specced in `plugins/images.lua`; it is what
+      -- renders matplotlib output inline here (backend `kitty`).
       vim.g.molten_image_provider = "image.nvim"
       vim.g.molten_output_win_max_height = 20
       vim.g.molten_auto_open_output = true
@@ -40,16 +39,6 @@ return {
     },
   },
 
-  -- Image rendering backend for molten output (matplotlib figures, etc.).
-  {
-    "3rd/image.nvim",
-    ft = "python",
-    build = false,
-    opts = {
-      -- WezTerm no renderiza el kitty graphics protocol (testeado: falla con y
-      -- sin tmux). `ueberzug` usa ueberzugpp (overlay externo) y funciona con
-      -- cualquier terminal. Requiere pkgs.ueberzugpp en neovimExtraPkgs.
-      backend = "ueberzug",
-    },
-  },
+  -- The `3rd/image.nvim` spec moved to `plugins/images.lua`: it stopped being a
+  -- molten detail the moment Markdown buffers needed it too.
 }

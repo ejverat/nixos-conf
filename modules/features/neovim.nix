@@ -29,7 +29,7 @@
       mkdir -p $out/bin
       ln -s ${lldbExt}/share/vscode/extensions/vadimcn.vscode-lldb/adapter/codelldb $out/bin/codelldb
     '';
-    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.omnisharp-roslyn pkgs.cargo pkgs.rustc pkgs.fd pkgs.ripgrep pkgs.fzf pkgs.cmake codelldb pkgs.imagemagick pkgs.ueberzugpp ]; # fd+ripgrep+fzf: picker (fzf-lua); omnisharp+codelldb: C#/native debugging without mason; cmake: cmake-tools.nvim and compile_commands.json generation; imagemagick: image.nvim magick_cli processor; ueberzugpp: ueberzug backend (WezTerm no renderiza kitty)
+    neovimExtraPkgs = [ pkgs.tree-sitter pkgs.dotnet-sdk pkgs.eslint_d pkgs.prettierd pkgs.alejandra pkgs.nixd pkgs.typescript-language-server pkgs.typescript pkgs.tailwindcss-language-server pkgs.tailwindcss_3 pkgs.omnisharp-roslyn pkgs.cargo pkgs.rustc pkgs.fd pkgs.ripgrep pkgs.fzf pkgs.cmake codelldb pkgs.imagemagick ]; # fd+ripgrep+fzf: picker (fzf-lua); omnisharp+codelldb: C#/native debugging without mason; cmake: cmake-tools.nvim and compile_commands.json generation; imagemagick: image.nvim magick_cli processor (scaling/cropping for the kitty backend)
     neovimGrammarPlugins = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins;
     neovimModule = { config, lib, wlib, ... }: {
       imports = [ wlib.wrapperModules.neovim ];
