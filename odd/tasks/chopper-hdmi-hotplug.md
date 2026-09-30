@@ -1,5 +1,13 @@
 # Feature: make HDMI hotplug survive on chopper
 
+> **Superseded (2026-09-26).** The root cause below is falsified: with this
+> override active and no `nvidia-drm` fbdev device present, the identical failure
+> recurred. See `odd/tasks/chopper-hdmi-dgpu-power.md`. The `fbdev=0` override is
+> still in place, deliberately unchanged, so the new test moves one variable at a
+> time. The "Do not touch `powerManagement`" decision below is wrong, and it is
+> precisely what left the driver preserving VRAM with no freeze/thaw mechanism
+> registered.
+
 ## Goal
 
 Plugging the external monitor into `chopper` while a session is running leaves

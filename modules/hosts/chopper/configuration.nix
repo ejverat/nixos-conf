@@ -302,27 +302,46 @@
 
     hardware.nvidia = {
       modesetting.enable = true;
-      powerManagement.enable = false;
+
+      # HDMI-A-1 hangs off the dGPU (0000:01:00.0) while niri renders on i915, so
+      # the external output is a cross-GPU destination whose plane needs a
+      # hardware semaphore. If the dGPU loses its display state -- after a resume
+      # (PM: suspend exit), or when the output is re-attached -- nvidia-drm
+      # rejects niri's atomic commit:
+      #   NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header
+      #   *ERROR* Failed to initialize semaphore for plane fence
+      #   *ERROR* Failed to apply atomic modeset.  Error code: -11  (EAGAIN)
+      # Xid 13 means the GPU ran a command stream whose shader memory is gone:
+      # the client context survived the resume, the VRAM it points at did not.
+      # niri never retries an EAGAIN commit, so the panel stays black for the
+      # rest of the boot while niri still lists the output as configured.
+      #
+      # With open = true and driver >= 595 this installs the suspend path NVIDIA
+      # documents for a hybrid laptop: NVreg_PreserveVideoMemoryAllocations=1 plus
+      # NVreg_UseKernelSuspendNotifiers=1 (powerManagement.kernelSuspendNotifier
+      # defaults to true for the open module from 595), so the kernel notifies the
+      # driver instead of the nvidia-sleep.sh systemd units, which are not
+      # installed in this combination. The driver's own defaults here are
+      # PreserveVideoMemoryAllocations=2 and DynamicPowerManagement=3 with no
+      # freeze/thaw mechanism registered at all.
+      # See odd/tasks/chopper-hdmi-dgpu-power.md.
+      powerManagement.enable = true;
       powerManagement.finegrained = false;
       open = true;
       nvidiaSettings = true;
       #package = config.boot.kernelPackages.nvidiaPackages.stable;
 
-      # HDMI-A-1 hangs off the dGPU (0000:01:00.0) while niri renders on i915,
-      # so the external output is a cross-GPU destination. nvidia-drm's fbdev
-      # emulation claims that connector as a console framebuffer the moment the
-      # hotplug event creates it, and it is the one anomaly present in the only
-      # trace where niri's atomic commit to it was rejected:
-      #   nvidia 0000:01:00.0: [drm] fb1: nvidia-drmdrmfb frame buffer device
-      #   *ERROR* Failed to initialize semaphore for plane fence
-      #   *ERROR* Failed to apply atomic modeset.  Error code: -11  (EAGAIN)
-      # niri never retries, so the monitor detects but stays black until the
-      # compositor restarts. nixpkgs sets nvidia-drm.fbdev=1 unconditionally for
-      # modesetting.enable with driver >= 545 and offers no option for it, hence
-      # the moduleParams hatch; mkForce is required because a plain value
-      # conflicts under the attrsOf (attrsOf raw) type. The console is
-      # unaffected: fbcon is bound to i915drmfb (fb0), not to this one.
-      # See odd/tasks/chopper-hdmi-hotplug.md.
+      # Falsified hypothesis, kept on purpose for one more deploy so the
+      # powerManagement change is the only variable in the test. nvidia-drm's
+      # fbdev emulation was blamed for the rejected commit because the
+      # `fb1: nvidia-drmdrmfb` registration was the one anomaly in the single
+      # retained failing trace; the same failure later recurred with this
+      # override active and no fbdev device present. It is harmless: fbcon is
+      # bound to i915drmfb (fb0), not to this one, and nixpkgs otherwise sets
+      # fbdev=1 unconditionally for modesetting.enable with driver >= 545, with
+      # no option of its own. mkForce is required because a plain value conflicts
+      # under the attrsOf (attrsOf raw) type. Revert once the output survives
+      # suspend and hotplug with the new configuration.
       moduleParams.nvidia-drm.fbdev = lib.mkForce 0;
     };
 

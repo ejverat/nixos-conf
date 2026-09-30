@@ -146,39 +146,59 @@ pieces are:
 cat /sys/class/drm/card1-HDMI-A-1/status      # -> connected / disconnected
 niri msg outputs                               # what the compositor sees
 niri msg version                               # cross-check in bug reports
-grep nvidia-drm /etc/modprobe.d/nixos.conf     # -> fbdev=0 modeset=1
+grep -E "nvidia" /etc/modprobe.d/nixos.conf    # -> nvidia-drm fbdev=0 modeset=1, nvidia NVreg_*
+grep -i Preserve /proc/driver/nvidia/params     # -> effective suspend behaviour
 ```
 
 The module options come from `modprobe.d`, not from the kernel command line:
 the driver is not in `/proc/cmdline`.
 
-**Known issue: the panel detects but stays black after a hotplug.** `nvidia-drm`
-rejects the compositor's atomic commit to the freshly attached output —
-`Failed to initialize semaphore for plane fence`, then
-`Failed to apply atomic modeset. Error code: -11` (`EAGAIN`) — niri does not
-retry, and the kernel reports `Flip event timeout on head 0` a few seconds later.
-The connector still reads `connected`, which is why it looks detected.
-The host module therefore disables `nvidia-drm`'s fbdev emulation
-(`hardware.nvidia.moduleParams.nvidia-drm.fbdev = lib.mkForce 0`), the one
-anomaly present in the failing trace and absent from the working ones. Full
-reasoning and the ranked fallbacks are in `odd/tasks/chopper-hdmi-hotplug.md`.
+**Known issue: the panel goes black when the dGPU loses its state.** The commit
+fails after a resume or when the output is re-attached, not because of the
+connector:
 
-If it still happens, retry the commit without restarting the session:
+```
+PM: suspend exit
+niri: laptop lid opened
+NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 11 Error
+Failed to initialize semaphore for plane fence
+Failed to apply atomic modeset.  Error code: -11   (EAGAIN)
+Flip event timeout on head 0
+```
+
+`Xid 13` means the GPU ran a command stream whose shader memory is gone: the
+client context survived the resume, the VRAM it points at did not. `nvidia-drm`
+then rejects niri's atomic commit to the cross-GPU plane, niri never retries an
+`EAGAIN` commit, and the panel stays black for the rest of the boot while
+`niri msg outputs` still lists the output as configured. The connector reading
+`connected` is exactly why it looks like a detection problem.
+
+The host module therefore enables the suspend path NVIDIA documents for this
+driver (`hardware.nvidia.powerManagement.enable = true`): with `open = true` and
+driver 595 or newer that sets `NVreg_PreserveVideoMemoryAllocations=1` and
+`NVreg_UseKernelSuspendNotifiers=1`, so the kernel freezes and thaws the driver
+instead of the `nvidia-sleep.sh` systemd units, which are not installed in this
+combination. Full reasoning, the falsified fbdev hypothesis and the ranked
+fallbacks are in `odd/tasks/chopper-hdmi-dgpu-power.md`.
+
+Re-attaching the cable does **not** clear it — every reconnect reproduces the
+same rejection. Retry the commit without restarting the session:
 
 ```sh
 niri msg output HDMI-A-1 off && niri msg output HDMI-A-1 on
 ```
 
-Logging out and back in also works, but only because it buys a second attempt —
-the first commit after a restart frequently fails the same way. Check the kernel
-log to tell the two apart:
+Logging out and back in works more often, but only because it buys another
+attempt, and it is not reliable. Check the kernel log to confirm which failure
+this is:
 
 ```sh
-journalctl -k -b 0 | grep nv_drm
+journalctl -k -b 0 | grep -E "nv_drm|Xid"
 ```
 
 Anything matching `nv_drm_atomic` means the driver refused again. Because the
-race is intermittent, one clean hotplug is weak evidence; repeat it and re-check.
+failure is intermittent, one clean hotplug is weak evidence: confirm with a real
+suspend/resume cycle **and** a hotplug before believing it is fixed.
 
 ## What is deliberately not in Nix
 
@@ -201,5 +221,7 @@ git log --oneline -5                     # last known-good squashes on main
 - `README.md` — repo layout, PR conventions, roadmap.
 - `odd/tasks/chopper-home-manager.md` — why chopper consumes the shared layer and
   which parts stay system-side.
-- `odd/tasks/chopper-hdmi-hotplug.md` — the HDMI hotplug failure, its evidence and
-  the fallbacks if the fbdev override does not hold.
+- `odd/tasks/chopper-hdmi-dgpu-power.md` — why the HDMI output goes black after a
+  resume or a hotplug, the falsified fbdev hypothesis and the ranked fallbacks.
+- `odd/tasks/chopper-hdmi-hotplug.md` — the earlier, superseded attempt, kept for
+  the record of how the fbdev hypothesis was formed and disproved.
