@@ -230,11 +230,11 @@ separate commit once the new configuration holds.
   its own hash.
 - The rebase changed only the parents: the tree is identical, so the deployed
   generation built from the pre-rebase `32aec4e` is still the same configuration.
-- No issue and no pull request yet. The change is live on the host and has held
-  through 2026-09-26 to 09-30 on light use, which is still not a normal week of
-  suspend/resume; the PR body should say that rather than claim a fix. Repo
-  convention when it comes: issue with `type:bug` + `status:approved`, branch as
-  above, PR linking `Closes #N`.
+- Issue #65 (`type:bug` + `status:approved`); PR #66 against `main`, label
+  `type:bug`, body links `Closes #65`. Merge is the user's decision.
+- The PR body states the evidence honestly: it held from 2026-09-26 to 09-30 on
+  light use, which is not a normal week of suspend/resume, so it is not presented
+  as a proven fix.
 
 ## Close-out
 
