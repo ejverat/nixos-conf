@@ -406,9 +406,18 @@ images still behave.
 
 ## Delivery
 
-Uncommitted work on `feat/nvim-inline-notebook-images`, staged (`git add`) so a
-`nixos-rebuild --flake` can see it at all. Commit, push and PR stay human
-decisions.
+- **Issue #63** — `fix(nvim): render raw-HTML images in the notebook views inline`,
+  labels `type:bug` + `status:approved`.
+- **Commit `d9fa66e`** — the change: the new integration, the new spec, the
+  `molten.lua` cleanup, `neovim.nix` and this document. 5 files, 738 insertions,
+  16 deletions.
+- **PR #64** against `main`, labels `type:bug` + `size:exception`, body links
+  `Closes #63`. `MERGEABLE` on opening.
+- The repository has no `.github/` directory at all — no workflows, therefore no
+  automated checks run and nothing blocks the merge. Merge remains the user's
+  decision.
+- `size:exception` follows the previous nvim fix (PR #58): 437 of the 738 added
+  lines are this record, which is what the diff's non-obvious values rest on.
 
 ## Follow-ups
 
