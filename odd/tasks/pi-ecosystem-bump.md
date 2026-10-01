@@ -40,17 +40,66 @@ how any of them is wired into the hosts.
 ## Tasks
 
 1. [x] Create the feature branch and this document.
-2. [ ] Bump the `nixpkgs-pi` pin and verify `pi --version`.
-3. [ ] Bump `gentle-pi` 3.2.0 -> 3.7.0 with its coupled `gentle-ai` 3.7.0.
-4. [ ] Bump `gentle-engram` 0.1.12 -> 0.1.16.
-5. [ ] Re-sync the vendored `gentle-profile` links against what gentle-ai 3.7.0
+2. [x] Bump the `nixpkgs-pi` pin and verify `pi --version`.
+3. [x] Bump `gentle-pi` 3.2.0 -> 3.7.0 with its coupled `gentle-ai` 3.7.0.
+4. [x] Bump `gentle-engram` 0.1.12 -> 0.1.16.
+5. [x] Re-sync the vendored `gentle-profile` links against what gentle-ai 3.7.0
        writes into its config home, if they differ.
-6. [ ] Refresh stale version references in comments and docs.
+6. [x] Refresh stale version references in comments and docs.
 7. [ ] Update `npm:pi-mcp-adapter` 2.34.0 -> 4.0.0 and validate.
 8. [ ] Full verification and activation handoff.
 
 ## Verification evidence
 
-Filled in as each task closes.
+- **Task 1**: branch `chore/pi-ecosystem-bump` created from `main` (`66545fd`).
+- **Task 2**: `flake.lock` moves `nixpkgs-pi` to 2026-09-29
+  (`b4fd65b198c599cbe814fcb9f42d25d021595ec9`). The wrapped package builds from
+  the binary cache as `pi-coding-agent-0.87.1`, `pi --version` prints `0.87.1`,
+  and the wrapper still prepends nodejs 24.21.0 (the `npm:` reconciliation in
+  `~/.pi/agent/settings.json` keeps working). Nixpkgs-unstable is at 0.87.1
+  while upstream npm publishes 0.99.2; the pin follows nixpkgs by decision.
+- **Task 3**: `gentle-pi-3.7.0` builds. `.gentle-ai/v3.7.0/gentle-ai --version`
+  prints `gentle-ai 3.7.0`, and the written `integrity.json` has the exact key
+  order the installer's own `signedReleaseManifest` builds. Both gentle-ai
+  digests were re-derived from the downloaded archive before pinning: the
+  archive sha256 and the extracted binary sha256 match the 3.7.0 asset table
+  byte for byte. The bundled installer diffs against 3.2.0 in 55 lines and only
+  version constants and digests change, so the runtime layout and the manifest
+  shape are untouched. `pnpmDeps` keeps the 3.2.0 hash on purpose:
+  `pnpm-lock.yaml` is byte-identical between the two tags (243 resolutions in
+  both) and the build reports that same hash back. Fixed alongside: `bin/` was
+  never copied into `$out`, so the `gentle-shell` launcher `package.json`
+  declares was missing since before the 3.2.0 pin.
+- **Task 4**: `gentle-engram-0.1.16` builds with every file the tarball declares,
+  and its local `typebox` is 1.3.30, which still satisfies the tarball's
+  `^1.1.38`.
+- **Task 5**: no re-sync is needed. `lib/agent-profiles.ts` is byte-identical
+  between 3.2.0 and 3.7.0 (empty diff), `PROFILES_VERSION` is 1, and the live
+  `~/.pi/gentle-ai/profiles.json` carries exactly that kind and version. The
+  script is not shipped by either package: its text appears nowhere in gentle-pi
+  3.7.0, `gentle-ai --help` exposes no profile command, and `gentle-ai sync` in a
+  fresh `HOME` writes only state and telemetry files. `gentle-profile list` and
+  `current` run and report that the live routing equals the stored `bonus`
+  profile. The comments claiming the runtime provides the script were corrected.
+- **Task 6**: no stale live references remain. `pi.nix` and `flake.nix` state the
+  relationship (gentle-pi's floor is still 0.85.1) and the main nixpkgs pin still
+  ships 0.84.4, so both stay true. `portable-home-manager.md:67` records 0.85.1 as
+  evidence of a closed task and is deliberately left alone; rewriting it would
+  falsify that record.
 
-- Task 1: branch `chore/pi-ecosystem-bump` created from `main` (`66545fd`).
+## Open items
+
+- **Pi version skew for `gentle-shell`.** `gentle-pi`'s package keeps a bundled
+  `@earendil-works/pi-coding-agent` at 0.85.1 in `node_modules`, and the
+  launcher's resolution order prefers that bundled copy over `pi` on `PATH`, so
+  `gentle-shell` would still run 0.85.1 while the system runs 0.87.1. Nothing in
+  this repo invokes `gentle-shell`, so this is latent. Fixing it well means
+  either exporting `GENTLE_SHELL_PI` or dropping the bundled copy; both change
+  runtime behavior and are the user's call.
+- **`opencode-go/omen-alpha`** in `enabledModels` draws a no-matching-model
+  warning on startup. It is independent of this bump (the local model catalog
+  holds no `opencode-go` entries at all) and is left untouched.
+- The upstream GitHub repository was renamed to `gentle-shell`. The Nix pin keeps
+  the old name on purpose because GitHub's rename redirect resolves it and the
+  npm package is still `gentle-pi`; switching would only rename the source store
+  path.
