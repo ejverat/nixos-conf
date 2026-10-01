@@ -47,7 +47,7 @@ how any of them is wired into the hosts.
        writes into its config home, if they differ.
 6. [x] Refresh stale version references in comments and docs.
 7. [x] Update `npm:pi-mcp-adapter` 2.34.0 -> 4.0.0 and validate.
-8. [ ] Full verification and activation handoff.
+8. [x] Full verification and activation handoff.
 
 ## Verification evidence
 
@@ -107,6 +107,27 @@ how any of them is wired into the hosts.
   returns the identical message. The `~/.pi/agent` changes are user-level state,
   not repository content; `modules/features/pi.nix` had its two comments about
   the old `mcp.json` path updated.
+- **Task 8**: `nix flake check` passes both eval checks (chopper and gear5th,
+  deep evaluation, no compilation). All four packages build, gear5th's
+  `homeConfigurations.gear5th.activationPackage` builds, and chopper's
+  `nixosConfigurations.chopper.config.system.build.toplevel` builds. The
+  activation scripts resolve to the new store paths (`gentle-pi-3.7.0`,
+  `gentle-engram-0.1.16`), which is what will be merged into `settings.json`.
+  A dry run of the post-activation state was run in an isolated agent dir
+  (`PI_CODING_AGENT_DIR` pointed at a scratch copy of `settings.json` with the
+  new store paths, `auth.json` symlinked rather than copied, scratch dir removed
+  afterwards): pi 0.87.1 starts and loads gentle-pi 3.7.0 (`gentle_review*`,
+  `subagent_*`, `todo`, `codegraph`, `session_worktree_register`),
+  gentle-engram 0.1.16 (`mem_*`, including the new `mem_list_projects`,
+  `mem_pin`, `mem_unpin`) and the 4.0.0 adapter (`mcp`); with
+  `mcp-adapter.json` present, `mcpScript` appears too. The `omen-alpha` model
+  warning reproduces there, which confirms it is unrelated to this bump.
+  Working tree clean, seven commits on the branch.
+  **Activation is pending and belongs to the user**: `sudo` requires an
+  interactive password on chopper, so `sudo nixos-rebuild switch --flake
+  .#chopper` (and `home-manager switch --flake ~/nixos-conf#gear5th` on gear5th)
+  have not been run. After activating, restart pi and confirm `pi list` shows
+  both new store paths.
 
 ## Open items
 
