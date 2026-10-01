@@ -6,8 +6,8 @@
   };
 
   # Portable user layer (non-NixOS hosts): same wrapped binary on the user
-  # profile. The ~/.pi runtime dir (settings.json, npm packages, mcp.json,
-  # agent config) is user data and travels with the account.
+  # profile. The ~/.pi runtime dir (settings.json, npm packages,
+  # mcp-adapter.json, agent config) is user data and travels with the account.
   flake.homeModules.pi = { pkgs, flakeSelf, ... }: {
     home.packages = [
       flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myPi
@@ -24,8 +24,10 @@
     #   1. It reconciles the `npm:` entries in ~/.pi/agent/settings.json by
     #      running `npm install <pkg> --prefix ~/.pi/agent/npm
     #      --legacy-peer-deps`.
-    #   2. It runs MCP servers from ~/.pi/agent/mcp.json whose `command` may
-    #      be `npx` (the context7 entry uses it).
+    #   2. It runs MCP servers from ~/.pi/agent/mcp-adapter.json whose `command`
+    #      may be `npx` (the context7 entry uses it). That file is the adapter's
+    #      own config since pi-mcp-adapter 4.0.0; the old ~/.pi/agent/mcp.json
+    #      is only read as a legacy migration input now.
     #
     # The nixpkgs package wraps $out/bin/pi with only ripgrep and fd on PATH
     # (postFixup), so as soon as a `npm:` package was configured pi died on

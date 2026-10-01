@@ -46,7 +46,7 @@ how any of them is wired into the hosts.
 5. [x] Re-sync the vendored `gentle-profile` links against what gentle-ai 3.7.0
        writes into its config home, if they differ.
 6. [x] Refresh stale version references in comments and docs.
-7. [ ] Update `npm:pi-mcp-adapter` 2.34.0 -> 4.0.0 and validate.
+7. [x] Update `npm:pi-mcp-adapter` 2.34.0 -> 4.0.0 and validate.
 8. [ ] Full verification and activation handoff.
 
 ## Verification evidence
@@ -86,6 +86,27 @@ how any of them is wired into the hosts.
   ships 0.84.4, so both stay true. `portable-home-manager.md:67` records 0.85.1 as
   evidence of a closed task and is deliberately left alone; rewriting it would
   falsify that record.
+- **Task 7**: installed 4.0.0 with `pi update --extension npm:pi-mcp-adapter`;
+  `~/.pi/agent/npm/package.json` now pins `^4.0.0`. Its peer range includes
+  `^0.87.0`, so the pinned 0.87.1 satisfies it. Two 4.0.0 changes would have
+  silently removed working capability, so the config was migrated first:
+  `mcpScript` is now opt-in, and the adapter no longer reads `<agent dir>/mcp.json`
+  (confirmed in its own `config.ts`, where the loaded global source is now
+  `mcp-adapter.json`). `~/.pi/agent/mcp.json` was moved to `mcp-adapter.json` with
+  identical content (backup: `mcp.json.bak-20260930-181519`) and `settings.scriptMode`
+  was set to `true` to preserve `mcpScript`. Verified against the installed 4.0.0
+  code: `getPiGlobalConfigPath()` resolves `mcp-adapter.json`, `loadMcpConfig()`
+  returns `context7`, the parsed settings report `scriptMode: true`, and
+  `getLegacyMcpMigrationNotices()` is empty. The native dependency loads
+  (`@napi-rs/keyring` + `keyring-linux-x64-gnu`). End to end in ephemeral
+  sessions: `mcp({})` reports `0/1` servers, `mcp({ connect: "context7" })`
+  connects and lists `context7_resolve-library-id` and `context7_query-docs`,
+  `mcp({ server: "context7" })` returns the same two, and `mcpScript` with
+  `emit("script-mode-ok")` returns `script-mode-ok`. `mcp({ server })` asking for
+  an explicit connect first is not a regression: the running 2.34.0 session
+  returns the identical message. The `~/.pi/agent` changes are user-level state,
+  not repository content; `modules/features/pi.nix` had its two comments about
+  the old `mcp.json` path updated.
 
 ## Open items
 
