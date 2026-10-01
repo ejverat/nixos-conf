@@ -6,14 +6,21 @@
   piActivation = import ../lib/_pi-activation.nix;
   gentleProfile = import ../lib/_gentle-profile.nix;
 
-  # gentle-ai release pinned by gentle-pi v3.2.0 itself
+  # gentle-ai release pinned by gentle-pi v3.7.0 itself
   # (scripts/gentle-ai-installer.mjs, INSTALLER_VERSION). The binary is a
   # static Go executable, so the official signed release runs fine on NixOS
   # and passes gentle-pi's strict package-local integrity verification.
-  gentleAiVersion = "3.1.0";
-  gentleAiAsset = "gentle-ai_3.1.0_linux_amd64.tar.gz";
-  gentleAiAssetSha256 = "dc55c44a2eb46212a38eca0dfd4d778481ec37e765f40d5a0752d03c28e1ee49";
-  gentleAiBinarySha256 = "70e335d25809a0d358c12f48b2f0d1da00741e725584ceeb8c1318c60d0a6e9e";
+  #
+  # This version may never drift from the gentle-pi tag above: the installer
+  # fails closed with GENTLE_AI_VERSION_MISMATCH when the binary does not report
+  # INSTALLER_VERSION, and `pi install` would otherwise re-download it.
+  gentleAiVersion = "3.7.0";
+  gentleAiAsset = "gentle-ai_3.7.0_linux_amd64.tar.gz";
+  # Both digests are transcribed from that release's own asset table
+  # (`asset(name, sha256, binarySha256, executable)`) and were re-derived from
+  # the downloaded archive before pinning.
+  gentleAiAssetSha256 = "a730a61a43758f04cc9a4ac644945cc0e8652a1e33d6997a0a3d3f0044d2fff5";
+  gentleAiBinarySha256 = "002d09fd2b9628a29986a660c1f51f8a5042ff7fd54c8ab15b7b27de96c6cccc";
 in {
   flake.nixosModules.gentle-pi = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
@@ -60,7 +67,7 @@ in {
     # Do NOT also `pi install npm:gentle-pi`: that would load it twice.
     #
     # The prune regex MUST tolerate the `-<version>` suffix: a derivation's
-    # store path is `<pname>-<version>` (e.g. ...-gentle-pi-3.2.0), so an
+    # store path is `<pname>-<version>` (e.g. ...-gentle-pi-3.7.0), so an
     # anchored `-gentle-pi$` matches nothing and stale versions accumulate in
     # settings.json. Pi then loads two copies of the same extensions and
     # aborts startup with `Tool "<name>" conflicts with ...`.
@@ -135,7 +142,7 @@ in {
 
       src = pkgs.fetchurl {
         url = "https://github.com/Gentleman-Programming/gentle-ai/releases/download/v${gentleAiVersion}/${gentleAiAsset}";
-        hash = "sha256-3FXESi60YhKjjsoN/U13hIHsN+dl9A1aB1LQPCjh7kk=";
+        hash = "sha256-pzCmGkN1jwTMmkrGRJRcwOhlKh4z1pl6Cj0/AETS//U=";
       };
 
       sourceRoot = ".";
@@ -150,13 +157,19 @@ in {
   in {
     packages.gentle-pi = pkgs.stdenv.mkDerivation (finalAttrs: {
       pname = "gentle-pi";
-      version = "3.2.0";
+      version = "3.7.0";
 
+      # The upstream GitHub repository was renamed to `gentle-shell` (the npm
+      # package is still `gentle-pi`, and gentle-pi's own self-detection paths
+      # still use the old repo name). `repo` deliberately keeps the old name:
+      # GitHub's rename redirect resolves it, and the pinned tag plus hash are
+      # content-addressed either way. Switching the name would only rename the
+      # source store path; revisit if the redirect ever stops resolving.
       src = pkgs.fetchFromGitHub {
         owner = "Gentleman-Programming";
         repo = "gentle-pi";
         tag = "v${finalAttrs.version}";
-        hash = "sha256-vN+esM/GaVMmCAs6j4JhVBDoeg60OacDW+Rw7Kh4aFg=";
+        hash = "sha256-QjnglcZJpX4XnQ7MUxyVbszg2RMYRiJsZXdcCN68rxY=";
       };
 
       __structuredAttrs = true;
@@ -166,6 +179,9 @@ in {
         inherit (finalAttrs) pname version src;
         pnpm = pnpm11.pnpm;
         fetcherVersion = 4;
+        # Byte-identical to the 3.2.0 pin: pnpm-lock.yaml did not change between
+        # v3.2.0 and v3.7.0 (same 243 resolutions, same two runtime deps), so the
+        # resolved dependency set is the same derivation input.
         hash = "sha256-MTi1ZLE4pX4YgDlxnvy3Zo7yZQT6gquYISJSIae2eAk=";
       };
 
@@ -186,8 +202,11 @@ in {
         runHook preInstall
 
         # Same file set as the published npm tarball (package.json "files").
+        # `bin/` was missing here since before the 3.2.0 pin even though the
+        # tarball ships it, so `gentle-shell` — the launcher package.json
+        # declares — was never installed. Keep this list in step with "files".
         mkdir -p $out
-        cp -r assets contracts docs extensions lib prompts runtime scripts skills tests themes package.json README.md LICENSE $out/
+        cp -r assets bin contracts docs extensions lib prompts runtime scripts skills tests themes package.json README.md LICENSE $out/
 
         # Runtime deps only (@earendil-works/pi-tui, @heyhuynhgiabuu/pi-pretty).
         pnpm prune --prod --ignore-scripts
