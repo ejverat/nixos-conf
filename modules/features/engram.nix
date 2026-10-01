@@ -19,7 +19,7 @@ in {
     # policy as gentle-pi.nix: idempotent, preserves every other entry.
     #
     # As in gentle-pi.nix, the prune regex must tolerate the `-<version>`
-    # suffix of the store path (...-gentle-engram-0.1.12), otherwise old
+    # suffix of the store path (...-gentle-engram-0.1.16), otherwise old
     # versions are never removed and pi fails with duplicate tool conflicts.
     system.activationScripts.piEngram = {
       deps = [ "users" "groups" ];
@@ -87,13 +87,14 @@ in {
     # tarball (no build step); only runtime dep is typebox.
     packages.gentle-engram = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
       pname = "gentle-engram";
-      version = "0.1.12";
+      version = "0.1.16";
 
       src = pkgs.fetchurl {
         url = "https://registry.npmjs.org/gentle-engram/-/gentle-engram-${finalAttrs.version}.tgz";
-        hash = "sha512-uSuLTmK5dq5mYCwKrrVLnEJUNGHBl5ptVsxxstP8sCnnWUQvg2dQC99NEapgMfQO7ni8u9vG5LF07p8do23MLQ==";
+        hash = "sha512-y0mGGvb3ayaH1m8M5I+m+Ep8UrtraF35bQD8lkhiTXy5w3dOpRg8JTO2fQkCk1DCWKJMYfTXPJWdcJ818o6aoQ==";
       };
 
+      # The tarball requires typebox ^1.1.38, so this pin still satisfies it.
       typebox = pkgs.fetchurl {
         url = "https://registry.npmjs.org/typebox/-/typebox-1.3.30.tgz";
         hash = "sha512-vRmBLzlaq9O9dvfGmI5CssLGvDC/R594kH6N/Q1uUU5VPO3PTgQMlWe/UVNdNVTr2EET+FX8BWZkFdYgxTglbQ==";
