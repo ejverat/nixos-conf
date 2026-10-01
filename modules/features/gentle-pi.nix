@@ -103,11 +103,15 @@ in {
     # deterministic and documents the dependency next to what needs it.
     home.packages = [ pkgs.perl ];
 
-    # The gentle-ai runtime writes this script into its config home on first use,
-    # but the Nix package only ships the runtime binary and the pi extension, so a
-    # fresh host can end up without it (that is what happened on gear5th: the
-    # activation had nothing to link). Seed the vendored copy when it is missing —
-    # never overwrite, so a runtime-provided version always wins — make sure it is
+    # gentle-profile is this repository's own routing tool, vendored in
+    # dotfiles/pi-gentle-ai/ and seeded here. Neither the gentle-pi package nor
+    # gentle-ai ships it: the string appears nowhere in gentle-pi 3.7.0, gentle-ai
+    # 3.7.0 exposes no profile command in `--help`, and `gentle-ai sync` in a fresh
+    # home writes only state/telemetry. What the Nix package does ship is the
+    # runtime binary and the pi extension, so a fresh host has nothing to link
+    # (that is what happened on gear5th). Seed the vendored copy when it is
+    # missing — never overwrite, because a host that already has a locally adapted
+    # copy must keep it (chopper's copy predates the vendoring) — make sure it is
     # runnable, and link it so `gentle-profile` resolves by bare name.
     # `pi --version` does NOT load extensions: only a real session materializes
     # runtime files, which is why the seeding matters.

@@ -1,6 +1,6 @@
 # Shared shell body that seeds the vendored `gentle-profile` script into
-# ~/.pi/gentle-ai (only when missing, so a runtime-provided copy always wins)
-# and links it at ~/.local/bin/gentle-profile.
+# ~/.pi/gentle-ai (only when missing, so a host that already has a locally
+# adapted copy always wins) and links it at ~/.local/bin/gentle-profile.
 #
 # Used by the NixOS activation (root: pass `owner` for the chowns) and the
 # home-manager activation (user: `owner = null`).
