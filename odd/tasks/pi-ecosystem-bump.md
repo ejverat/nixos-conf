@@ -48,6 +48,7 @@ how any of them is wired into the hosts.
 6. [x] Refresh stale version references in comments and docs.
 7. [x] Update `npm:pi-mcp-adapter` 2.34.0 -> 4.0.0 and validate.
 8. [x] Full verification and activation handoff.
+9. [x] Resolve the `gentle-shell` pi runtime question.
 
 ## Verification evidence
 
@@ -128,16 +129,26 @@ how any of them is wired into the hosts.
   .#chopper` (and `home-manager switch --flake ~/nixos-conf#gear5th` on gear5th)
   have not been run. After activating, restart pi and confirm `pi list` shows
   both new store paths.
+- **Task 9**: the open item recorded under task 8 was **wrong** and is withdrawn.
+  `gentle-shell --version` reports `pi 0.87.1`, not the bundled 0.85.1, because
+  `resolveBundledCli()` resolves `<pkg>/package.json` and the package's `exports`
+  map exposes only `.`, `./rpc-entry`, `./client` and `./experimental/plugin` —
+  so it throws `ERR_PACKAGE_PATH_NOT_EXPORTED`, the catch returns `undefined`, and
+  the launcher falls through to `pi` on `PATH`. There was never an active skew.
+  The resolution order in `runtime/gentle-shell-launcher.mjs` (`GENTLE_SHELL_PI`,
+  then bundled, then `PATH`) is still what the code says; it just never reaches
+  step two. Because that held by accident of an upstream `exports` map, the
+  bundled copy is now removed from `$out` so adding `"./package.json"` upstream
+  cannot silently revive a stale runtime. Nothing else needs it: pi aliases that
+  specifier to its own copy for every extension load
+  (`dist/core/extensions/loader.js`, `getAliases`), which covers the 15+ package
+  files that import it. Verified after the removal: `gentle-shell --version`
+  still reports `pi 0.87.1` (identical before and after), the package-local
+  `gentle-ai` runtime still reports 3.7.0, and an isolated dry run still loads
+  `gentle_review`, `mem_save`, `mcp`, `mcpScript` and `todo` under pi 0.87.1.
 
 ## Open items
 
-- **Pi version skew for `gentle-shell`.** `gentle-pi`'s package keeps a bundled
-  `@earendil-works/pi-coding-agent` at 0.85.1 in `node_modules`, and the
-  launcher's resolution order prefers that bundled copy over `pi` on `PATH`, so
-  `gentle-shell` would still run 0.85.1 while the system runs 0.87.1. Nothing in
-  this repo invokes `gentle-shell`, so this is latent. Fixing it well means
-  either exporting `GENTLE_SHELL_PI` or dropping the bundled copy; both change
-  runtime behavior and are the user's call.
 - **`opencode-go/omen-alpha`** in `enabledModels` draws a no-matching-model
   warning on startup. It is independent of this bump (the local model catalog
   holds no `opencode-go` entries at all) and is left untouched.

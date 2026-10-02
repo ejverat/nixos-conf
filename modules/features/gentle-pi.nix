@@ -219,6 +219,23 @@ in {
         rm -rf node_modules/.bin
         cp -r node_modules $out/
 
+        # pnpm auto-installs the optional @earendil-works/pi-coding-agent peer,
+        # which parks a second, stale copy of the SDK next to the Nix-pinned pi
+        # (0.85.1 against 0.87.1 at this pin). Drop it so the pinned pi stays the
+        # single source of truth:
+        #
+        #   - Nothing needs it at runtime. pi aliases that specifier to its own
+        #     copy for every extension load (dist/core/extensions/loader.js,
+        #     getAliases), which is how the extensions/*.ts imports resolve.
+        #   - gentle-shell's resolveBundledCli() is the only other consumer, and
+        #     it resolves `<pkg>/package.json`, which the package's exports map
+        #     does not expose -- so it already throws
+        #     ERR_PACKAGE_PATH_NOT_EXPORTED and falls back to `pi` on PATH.
+        #     That fallback is what we want, but it holds by accident: adding
+        #     "./package.json" to upstream exports would silently make the
+        #     launcher prefer a stale pi. Removing the copy makes it structural.
+        rm -rf $out/node_modules/@earendil-works/pi-coding-agent
+
         # Package-local gentle-ai runtime, hash-identical to the one the
         # postinstall would have fetched, so the strict resolver accepts it.
         mkdir -p $out/.gentle-ai/v${gentleAiVersion}
