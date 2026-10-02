@@ -11,7 +11,7 @@ how any of them is wired into the hosts.
 | `pi-coding-agent` | 0.85.1 | nixpkgs-unstable at bump time | flake input `nixpkgs-pi` (`modules/features/pi.nix`) |
 | `gentle-pi` | 3.2.0 | 3.7.0 | `modules/features/gentle-pi.nix` |
 | `gentle-ai` | 3.1.0 | 3.7.0 | `modules/features/gentle-pi.nix` |
-| `gentle-engram` | 0.1.12 | 0.1.16 | `modules/features/engram.nix` |
+| `gentle-engram` | 0.1.12 | 0.1.12 (bump to 0.1.16 reverted, task 4) | `modules/features/engram.nix` |
 | `npm:pi-mcp-adapter` | 2.34.0 | 4.0.0 | `~/.pi/agent/settings.json` (user-level, not in this repo) |
 
 ## Decisions
@@ -42,13 +42,14 @@ how any of them is wired into the hosts.
 1. [x] Create the feature branch and this document.
 2. [x] Bump the `nixpkgs-pi` pin and verify `pi --version`.
 3. [x] Bump `gentle-pi` 3.2.0 -> 3.7.0 with its coupled `gentle-ai` 3.7.0.
-4. [x] Bump `gentle-engram` 0.1.12 -> 0.1.16.
+4. [x] Bump `gentle-engram` 0.1.12 -> 0.1.16. **Reverted, see task 10.**
 5. [x] Re-sync the vendored `gentle-profile` links against what gentle-ai 3.7.0
        writes into its config home, if they differ.
 6. [x] Refresh stale version references in comments and docs.
 7. [x] Update `npm:pi-mcp-adapter` 2.34.0 -> 4.0.0 and validate.
 8. [x] Full verification and activation handoff.
 9. [x] Resolve the `gentle-shell` pi runtime question.
+10. [x] Revert the `gentle-engram` bump after it broke the memory provider.
 
 ## Verification evidence
 
@@ -73,7 +74,9 @@ how any of them is wired into the hosts.
   declares was missing since before the 3.2.0 pin.
 - **Task 4**: `gentle-engram-0.1.16` builds with every file the tarball declares,
   and its local `typebox` is 1.3.30, which still satisfies the tarball's
-  `^1.1.38`.
+  `^1.1.38`. **This bump was a mistake and is reverted under task 10**: the
+  build check was not a compatibility check, and the extension's runtime
+  requirement on the `engram` binary went unverified.
 - **Task 5**: no re-sync is needed. `lib/agent-profiles.ts` is byte-identical
   between 3.2.0 and 3.7.0 (empty diff), `PROFILES_VERSION` is 1, and the live
   `~/.pi/gentle-ai/profiles.json` carries exactly that kind and version. The
@@ -146,9 +149,30 @@ how any of them is wired into the hosts.
   still reports `pi 0.87.1` (identical before and after), the package-local
   `gentle-ai` runtime still reports 3.7.0, and an isolated dry run still loads
   `gentle_review`, `mem_save`, `mcp`, `mcpScript` and `todo` under pi 0.87.1.
+- **Task 10**: the `gentle-engram` 0.1.16 bump broke every `mem_*` tool with
+  `The Engram binary "engram" does not support "instance-id" and predates
+  v2.0.0-rc.11`. Attribution was measured, not guessed: 0.1.12's `index.ts` has
+  zero occurrences of `instance-id`, `predates` and `rc.11`, while 0.1.16 has
+  6, 3 and 5, and both declare identical dependencies and peers — the version
+  step is the only difference. The Nix-pinned server is `engram` 1.20.0, whose
+  CLI answers `unknown command: instance-id`. It kept working until the provider
+  had to re-initialize, then failed closed. Reverted to 0.1.12, which reproduces
+  the original store path
+  (`/nix/store/95ryzy99640a91xxxwd06il5ppav6n37-gentle-engram-0.1.12`) exactly,
+  with a comment in `engram.nix` recording the coupling so it cannot be bumped
+  alone again. Verified: `nix flake check` passes, chopper's activation resolves
+  `gentle-pi-3.7.0` plus `gentle-engram-0.1.12`, and gear5th's
+  `activationPackage` builds.
 
 ## Open items
 
+- **`gentle-engram` is coupled to the `engram` server.** From 0.1.16 the
+  extension requires instance identity (`engram instance-id`, server
+  >= v2.0.0-rc.11); the repo pins `engram` 1.20.0, so the extension stays at
+  0.1.12. Upstream has since moved to `engram` v3.0.0 with `gentle-engram` 0.2.0
+  on npm, so closing this means a two-major server jump that migrates
+  `~/.engram/engram.db` (2.4 MB, 120+ observations). That needs its own feature:
+  back up the database, migrate a copy, verify the tools, then move the pin.
 - **`opencode-go/omen-alpha`** in `enabledModels` draws a no-matching-model
   warning on startup. It is independent of this bump (the local model catalog
   holds no `opencode-go` entries at all) and is left untouched.

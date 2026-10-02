@@ -19,7 +19,7 @@ in {
     # policy as gentle-pi.nix: idempotent, preserves every other entry.
     #
     # As in gentle-pi.nix, the prune regex must tolerate the `-<version>`
-    # suffix of the store path (...-gentle-engram-0.1.16), otherwise old
+    # suffix of the store path (...-gentle-engram-0.1.12), otherwise old
     # versions are never removed and pi fails with duplicate tool conflicts.
     system.activationScripts.piEngram = {
       deps = [ "users" "groups" ];
@@ -85,13 +85,23 @@ in {
     # gentle-engram: the Pi extension that exposes compact mem_* tools and
     # captures session events into the Engram HTTP server. Published npm
     # tarball (no build step); only runtime dep is typebox.
+    #
+    # Pinned to 0.1.12 on purpose -- do NOT bump it alone. From 0.1.16 onward the
+    # extension requires an `engram` binary that answers `instance-id` (the
+    # instance-identity protocol, >= v2.0.0-rc.11) and refuses to initialize the
+    # memory provider otherwise, so pairing it with the `engram` 1.20.0 server
+    # above breaks every mem_* tool. 0.1.12 has no such requirement (verified:
+    # zero occurrences of `instance-id`, `predates` and `rc.11`, against 6/3/5 in
+    # 0.1.16). Both versions declare identical deps and peers, so the version
+    # step is the only difference. Upgrading the extension means upgrading the
+    # server with it, and that server jump migrates ~/.engram/engram.db.
     packages.gentle-engram = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
       pname = "gentle-engram";
-      version = "0.1.16";
+      version = "0.1.12";
 
       src = pkgs.fetchurl {
         url = "https://registry.npmjs.org/gentle-engram/-/gentle-engram-${finalAttrs.version}.tgz";
-        hash = "sha512-y0mGGvb3ayaH1m8M5I+m+Ep8UrtraF35bQD8lkhiTXy5w3dOpRg8JTO2fQkCk1DCWKJMYfTXPJWdcJ818o6aoQ==";
+        hash = "sha512-uSuLTmK5dq5mYCwKrrVLnEJUNGHBl5ptVsxxstP8sCnnWUQvg2dQC99NEapgMfQO7ni8u9vG5LF07p8do23MLQ==";
       };
 
       # The tarball requires typebox ^1.1.38, so this pin still satisfies it.
