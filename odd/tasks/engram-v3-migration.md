@@ -82,13 +82,14 @@ signal, not a nuisance.
 3. [x] Copy test: run the 3.0.0 binary against the database copy through
        `ENGRAM_DATA_DIR`, run `engram doctor` read-only, then exercise a read and
        a write. This is the gate. **Result: passed.**
-4. [ ] Bump `gentle-engram` to 0.2.0 in the same commit as the server.
-5. [ ] Isolated end-to-end: scratch agent directory plus the copied database,
+4. [x] Bump `gentle-engram` to 0.2.0 in the same commit as the server.
+5. [x] Isolated end-to-end: scratch agent directory plus the copied database,
        confirming `mem_*` works and that `mem_update`/`mem_delete` now demand
        `expected_project`.
-6. [ ] Activate on chopper, verify against the live database, and keep the backup
-       until the result is confirmed.
-7. [ ] Record the new `expected_project` contract where the tools are used.
+6. [x] Activate on chopper, verify against the live database, and keep the backup
+       until the result is confirmed. **Built and verified here; the activation
+       itself is the user's step (sudo needs a password).**
+7. [x] Record the new `expected_project` contract where the tools are used.
 
 ## Fallback
 
@@ -140,11 +141,41 @@ rather than a day.
     real observations with their content.
   - Write: `save` created observation #125 (79 -> 80) and it reads back.
 
-**Staging note**: the server pin change is in the working tree and deliberately
-**not committed alone**. Activating 3.0.0 with the extension still at 0.1.12 would
-break `mem_update` and `mem_delete`, because v3 requires `expected_project` and
-only the matching extension sends it. It commits together with task 4.
+**Staging note**: between task 2 and task 4 the server pin sat in the working tree
+without a commit, on purpose: activating 3.0.0 while the extension was still at
+0.1.12 would break `mem_update` and `mem_delete`, since v3 requires
+`expected_project` and only the matching extension sends it. Both pins then moved
+in the single commit `8376f07`.
 
-Tasks 4-7 still need their own go-ahead: they move the extension, run the
-end-to-end check, activate against the live database and record the new
-`expected_project` contract.
+- **Task 4**: `gentle-engram` 0.2.0 builds at
+  `/nix/store/yyzwnb85gm2qcxfrz0jzq6qz9qxcr7pk-gentle-engram-0.2.0`; its `index.ts`
+  carries `expected_project` (4 occurrences) and `instance-id` (6). Both pins moved
+  in one commit (`8376f07`). In 0.2.0 typebox is a peer that pi aliases to its own
+  copy at load time; the local install is kept so the package stays self-contained.
+- **Task 5**: the 3.0.0 server was started against the backup copy on port 7439
+  (`ENGRAM_DATA_DIR=/tmp/engram-copytest`; its health reports `version: 3.0.0` and
+  an `instance_id`), leaving the live server on 7437 untouched. The server-side
+  contract was proven directly over HTTP, which is what a 0.1.x extension would
+  hit: `PATCH /observations/125` without the parameter answers `400
+  expected_project must be a valid non-empty project name`, with the correct owner
+  `200` (revision 2), and with a wrong owner `409 expected_project does not match
+  observation owner`. Extension level: a scratch agent directory (settings.json
+  pointing at the 0.2.0 and gentle-pi 3.7.0 paths, `auth.json` symlinked) ran pi
+  0.87.1 with `ENGRAM_URL=http://127.0.0.1:7439` and `ENGRAM_BIN` at the 3.0.0
+  binary — `mem_save` created #126, `mem_update` with `expected_project` succeeded,
+  `mem_delete` with `hard_delete` removed it, and a follow-up search found nothing.
+  The live database was untouched throughout (its server still reports 1.20.0, and
+  its counts moved only with this session's own writes). Test server stopped and
+  the scratch directory removed.
+- **Task 6**: `nix flake check` passes, chopper's system toplevel and gear5th's
+  `activationPackage` both build, the activation resolves `gentle-engram-0.2.0` for
+  `settings.json`, and `engram-3.0.0` is in `environment.systemPackages` (so the
+  `engram` on PATH becomes 3.0.0). **The activation itself has not been run**: sudo
+  requires an interactive password on chopper. Keep the backup until the live
+  result is confirmed.
+- **Task 7**: the contract is recorded in three places — the package comment in
+  `modules/features/engram.nix`, this document, and a new `## Memory` section in
+  `~/.pi/agent/AGENTS.md` (global agent instructions, so it is not repository
+  content). The section states the `expected_project` requirement with its `400`
+  and `409` answers, the equivalent raw-HTTP form, where the backups live, and the
+  version coupling between server and extension.
