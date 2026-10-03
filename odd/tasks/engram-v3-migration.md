@@ -73,15 +73,15 @@ signal, not a nuisance.
 
 ## Tasks
 
-1. [ ] Back up the live database with the server stopped
+1. [x] Back up the live database with the server stopped
        (`~/.engram/{engram.db,engram.db-wal,engram.db-shm}`), and confirm the
        copy opens read-only.
-2. [ ] Add `engram` 3.0.0 to `modules/features/engram.nix` (version, source hash,
+2. [x] Add `engram` 3.0.0 to `modules/features/engram.nix` (version, source hash,
        `vendorHash`, `main.version` ldflags) and build it; confirm `--version`
        reports 3.0.0 and `instance-id` is a real subcommand.
-3. [ ] Copy test: run the 3.0.0 binary against the database copy through
+3. [x] Copy test: run the 3.0.0 binary against the database copy through
        `ENGRAM_DATA_DIR`, run `engram doctor` read-only, then exercise a read and
-       a write. This is the gate.
+       a write. This is the gate. **Result: passed.**
 4. [ ] Bump `gentle-engram` to 0.2.0 in the same commit as the server.
 5. [ ] Isolated end-to-end: scratch agent directory plus the copied database,
        confirming `mem_*` works and that `mem_update`/`mem_delete` now demand
@@ -99,5 +99,52 @@ rather than a day.
 
 ## Verification evidence
 
-Filled in as each task closes. Tasks 1-3 are read-only with respect to the live
-database and can be executed before any decision to migrate it.
+- **Task 1**: baseline before touching anything: 89 sessions, 123 observations,
+  308 prompts, 11 projects. The server was stopped with `SIGTERM` (the 5-day-old
+  process died; the extension respawned a new one minutes later and `mem_stats`
+  returned the same counts), so the copy was taken with no writer. Pristine backup
+  at `~/.engram/backups/pre-v3-20261002-194652/`: `engram.db`, `engram.db-wal`,
+  `engram.db-shm`, plus a logical `engram export` (592,236 bytes) whose own counts
+  matched the baseline exactly, with sha256 recorded for the database and WAL. The
+  copy opens and reports the baseline counts. One self-inflicted false alarm worth
+  remembering: `pgrep -f "engram serve"` matches the checking script's own command
+  line, so it reported the server as alive after it had already died; `ps -p <pid>`
+  or a bracketed pattern is the honest check. Baseline `doctor` on 1.20.0: 4
+  checks, 3 ok, 1 warning (a pre-existing CUDA project/directory drift).
+- **Task 2**: `engram` 3.0.0 builds at
+  `/nix/store/ccw8jbzz36qp4nw7j2x8zqgbg2brc0ni-engram-3.0.0` with
+  `vendorHash = sha256-roVQ+K9Hsz0qi61f+zzb+JvgleOmBHSMcKfhwhI0snQ=`. `--version`
+  reports `engram 3.0.0` instead of `dev`, which is the point of the ldflag, and
+  `instance-id` answers with an id where 1.20.0 said `unknown command`. Checked
+  that running it against the live data directory did **not** touch the database:
+  it only writes a sibling `.instance-id` (33 bytes, mode 600) and its lock file,
+  and the live `engram.db` keeps its size and mtime.
+- **Task 3 (the gate): passed.** v3.0.0's `doctor` runs 11 checks against 1.20.0's
+  4. On a fresh copy of the backup: 7 ok, 2 warnings, 2 errors.
+  - ok: `invalid_session_identity`, `orphaned_observation_session`,
+    `orphaned_pending_relations`, `manual_session_name_project_mismatch`,
+    `sqlite_lock_contention`, `sync_mutation_required_fields` — every check that
+    concerns memory content.
+  - warnings: `session_project_directory_mismatch` (the same pre-existing CUDA
+    drift 1.20.0 already reported) and `ambiguous_active_runtime_sessions`
+    (4 active candidates for `nixos-conf`, i.e. today's own sessions).
+  - errors: `sync_target_closed_space` (11 `foreign_sync_target` findings — stale
+    `cloud:<project>` targets with pending unacked mutations, left over from
+    earlier cloud experiments) and `mcp_inspection_error` (a corrupt
+    `~/.gemini/config/mcp_config.json`, a file outside Engram).
+  - Neither error is caused by v3: both are pre-existing conditions that only
+    v3's larger check set can see, and `sync_target_closed_space` has a repair
+    path (`engram doctor repair --check sync_target_closed_space`).
+  - Read: project-scoped `stats` on the copy (25 sessions / 79 observations / 143
+    prompts) matches the baseline's `nixos-conf` row exactly, and `search` returns
+    real observations with their content.
+  - Write: `save` created observation #125 (79 -> 80) and it reads back.
+
+**Staging note**: the server pin change is in the working tree and deliberately
+**not committed alone**. Activating 3.0.0 with the extension still at 0.1.12 would
+break `mem_update` and `mem_delete`, because v3 requires `expected_project` and
+only the matching extension sends it. It commits together with task 4.
+
+Tasks 4-7 still need their own go-ahead: they move the extension, run the
+end-to-end check, activate against the live database and record the new
+`expected_project` contract.
