@@ -55,22 +55,33 @@ in {
 
   perSystem = { pkgs, inputs', ... }: {
     # Engram memory server: pure-Go (modernc.org/sqlite), SQLite + FTS5.
+    #
+    # This server and the `gentle-engram` extension move together, never alone:
+    # the extension requires instance identity from this binary, and v3.0.0 in
+    # turn requires an explicit `expected_project` on every observation update
+    # and delete, which only the matching extension sends. See the note on the
+    # extension pin below.
     packages.engram = pkgs.buildGoModule (finalAttrs: {
       pname = "engram";
-      version = "1.20.0";
+      version = "3.0.0";
 
       src = pkgs.fetchFromGitHub {
         owner = "Gentleman-Programming";
         repo = "engram";
         tag = "v${finalAttrs.version}";
-        hash = "sha256-qdKAll7N0HtJRbZYilzatVCUz1Tr+pqM217Y8O+Csjs=";
+        hash = "sha256-W5LNPxS4qa0fo/ejVQueR13cSLrtVydnsdgLGgIZ4uI=";
       };
 
-      vendorHash = "sha256-O+pC4x4DKNUWr7Sx9iZOjK6a64wrQA4/lnjvkNLBX64=";
+      # v3.0.0's module closure (it now pulls the cloud/dashboard dependencies).
+      vendorHash = "sha256-roVQ+K9Hsz0qi61f+zzb+JvgleOmBHSMcKfhwhI0snQ=";
       subPackages = [ "cmd/engram" ];
 
       env.CGO_ENABLED = 0;
-      ldflags = [ "-s" "-w" ];
+      # `-X main.version` is the ldflag .goreleaser.yaml uses; cmd/engram/main.go
+      # declares `var version = "dev"`, so without it the binary cannot state its
+      # own version and answers "Could not check for updates". The extension and
+      # `engram doctor` both reason about the server's version.
+      ldflags = [ "-s" "-w" "-X" "main.version=${finalAttrs.version}" ];
       doCheck = false;
 
       meta = {
@@ -84,27 +95,32 @@ in {
 
     # gentle-engram: the Pi extension that exposes compact mem_* tools and
     # captures session events into the Engram HTTP server. Published npm
-    # tarball (no build step); only runtime dep is typebox.
+    # tarball (no build step).
     #
-    # Pinned to 0.1.12 on purpose -- do NOT bump it alone. From 0.1.16 onward the
-    # extension requires an `engram` binary that answers `instance-id` (the
-    # instance-identity protocol, >= v2.0.0-rc.11) and refuses to initialize the
-    # memory provider otherwise, so pairing it with the `engram` 1.20.0 server
-    # above breaks every mem_* tool. 0.1.12 has no such requirement (verified:
-    # zero occurrences of `instance-id`, `predates` and `rc.11`, against 6/3/5 in
-    # 0.1.16). Both versions declare identical deps and peers, so the version
-    # step is the only difference. Upgrading the extension means upgrading the
-    # server with it, and that server jump migrates ~/.engram/engram.db.
+    # This extension and the `engram` server above are one unit: bump them
+    # together, never alone. Both couplings were learned the hard way:
+    #   - From 0.1.16 the extension requires the binary to answer `instance-id`
+    #     (instance identity, >= v2.0.0-rc.11) and refuses to initialize the
+    #     memory provider otherwise. Pairing 0.1.16 with the 1.20.0 server broke
+    #     every mem_* tool.
+    #   - 0.2.0 sends `expected_project` on `PATCH`/`DELETE /observations/{id}`,
+    #     which is what the 3.0.0 server began requiring. The mirror case is just
+    #     as broken: 3.0.0 with a 0.1.x extension fails mem_update and mem_delete.
+    # The 3.0.0 + 0.2.0 pair was validated against a copy of the live database
+    # through ENGRAM_DATA_DIR, with `engram doctor` and a write round trip, before
+    # either pin moved.
     packages.gentle-engram = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
       pname = "gentle-engram";
-      version = "0.1.12";
+      version = "0.2.0";
 
       src = pkgs.fetchurl {
         url = "https://registry.npmjs.org/gentle-engram/-/gentle-engram-${finalAttrs.version}.tgz";
-        hash = "sha512-uSuLTmK5dq5mYCwKrrVLnEJUNGHBl5ptVsxxstP8sCnnWUQvg2dQC99NEapgMfQO7ni8u9vG5LF07p8do23MLQ==";
+        hash = "sha512-c/1mAVfkGc6M5C8cGjwqCRo7cgckI26fXczDVLnT1cwLrw6Am//IFUxLZM6Gs5LOFhp0OARY+GJ+XQ/An4YAZA==";
       };
 
-      # The tarball requires typebox ^1.1.38, so this pin still satisfies it.
+      # 0.2.0 declares typebox as a peer, and pi aliases that specifier to its own
+      # copy at load time. The local install is kept anyway so the package stays
+      # self-contained if it is ever loaded without that alias.
       typebox = pkgs.fetchurl {
         url = "https://registry.npmjs.org/typebox/-/typebox-1.3.30.tgz";
         hash = "sha512-vRmBLzlaq9O9dvfGmI5CssLGvDC/R594kH6N/Q1uUU5VPO3PTgQMlWe/UVNdNVTr2EET+FX8BWZkFdYgxTglbQ==";
