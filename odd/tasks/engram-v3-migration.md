@@ -87,8 +87,8 @@ signal, not a nuisance.
        confirming `mem_*` works and that `mem_update`/`mem_delete` now demand
        `expected_project`.
 6. [x] Activate on chopper, verify against the live database, and keep the backup
-       until the result is confirmed. **Built and verified here; the activation
-       itself is the user's step (sudo needs a password).**
+       until the result is confirmed. **Done and verified on both hosts; one
+       post-activation step was required (see below).**
 7. [x] Record the new `expected_project` contract where the tools are used.
 
 ## Fallback
@@ -169,10 +169,24 @@ in the single commit `8376f07`.
   the scratch directory removed.
 - **Task 6**: `nix flake check` passes, chopper's system toplevel and gear5th's
   `activationPackage` both build, the activation resolves `gentle-engram-0.2.0` for
-  `settings.json`, and `engram-3.0.0` is in `environment.systemPackages` (so the
-  `engram` on PATH becomes 3.0.0). **The activation itself has not been run**: sudo
-  requires an interactive password on chopper. Keep the backup until the live
-  result is confirmed.
+  `settings.json`, and `engram-3.0.0` is in `environment.systemPackages`. The user
+  ran the activation on chopper and reported gear5th clean as well. Post-activation
+  state confirmed on chopper: `engram --version` reports 3.0.0, `pi list` shows
+  `gentle-engram-0.2.0` next to `gentle-pi-3.7.0`, the live server answers
+  `version: 3.0.0` with an `instance_id` that matches `engram instance-id`, and
+  the memory tools work.
+- **Task 6, the step the plan missed**: upgrading the server **leaves the previous
+  `engram serve` process running**, and the new extension refuses to use it instead
+  of killing it. Memory stays down until that process is stopped, and nothing but an
+  activation could have caught it — a build and a copy test both pass while the
+  live port is still served by the old binary. The extension's own message names it:
+  *"Engram server at http://127.0.0.1:7437 predates instance identity (server 0.1.0,
+  CLI engram 3.0.0). An older Engram left running by the upgrade is the likely cause:
+  stop it and start the current binary. Nothing is terminated automatically and
+  memory retries on its own."* Stopping the stale process is enough; the extension
+  starts the current binary by itself on the next memory call. **This applies to
+  every future server upgrade**, and it is recorded in the `## Memory` section of
+  `~/.pi/agent/AGENTS.md` for that reason.
 - **Task 7**: the contract is recorded in three places — the package comment in
   `modules/features/engram.nix`, this document, and a new `## Memory` section in
   `~/.pi/agent/AGENTS.md` (global agent instructions, so it is not repository
