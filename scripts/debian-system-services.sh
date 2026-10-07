@@ -43,6 +43,9 @@ APT_PACKAGES=(
     firmware-amd-graphics
     pciutils
     upower
+    # Core dumps: full cores on disk plus `coredumpctl` attribution, so the
+    # next silent session crash leaves evidence instead of nothing.
+    systemd-coredump
     # desktop services
     network-manager
     openssh-server
@@ -79,6 +82,7 @@ SYSTEM_SERVICES=(
 
 BT_CONF=/etc/bluetooth/main.conf
 MODULES_CONF=/etc/modules-load.d/nixos-conf.conf
+COREDUMP_CONF=/etc/systemd/coredump.conf.d/nixos-conf.conf
 
 ok() { printf '[+] %s\n' "$*"; }
 msg() { printf '[*] %s\n' "$*"; }
@@ -111,9 +115,14 @@ report() {
         fi
     done
 
-    local svc
+    # `systemctl ... | grep -q` under `set -o pipefail` is racy: grep exits at
+    # the first match, systemctl takes SIGPIPE, and the pipeline reports
+    # failure, so an installed unit intermittently reads as missing. Capture
+    # once and grep the captured text instead.
+    local svc unit_files
+    unit_files=$(systemctl list-unit-files --type=service --no-legend 2>/dev/null || true)
     for svc in "${SYSTEM_SERVICES[@]}"; do
-        if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^$svc"; then
+        if grep -q "^$svc" <<<"$unit_files"; then
             printf '    %-16s enabled=%-8s active=%s\n' \
                 "$svc" "$(systemctl is-enabled "$svc" 2>&1)" "$(systemctl is-active "$svc" 2>&1)"
         else
@@ -124,6 +133,12 @@ report() {
     printf '    %-16s (per-user units, expected)\n' "pipewire"
     printf '    %-16s enabled=%-8s active=%s\n' "pipewire(user)" \
         "$(systemctl --user is-enabled pipewire 2>&1)" "$(systemctl --user is-active pipewire 2>&1)"
+
+    if [ -r /proc/sys/kernel/core_pattern ] && grep -q 'systemd-coredump' /proc/sys/kernel/core_pattern; then
+        ok "coredump: core_pattern pipes to systemd-coredump"
+    else
+        warn "coredump: core_pattern is '$(cat /proc/sys/kernel/core_pattern 2>/dev/null)' (no systemd-coredump)"
+    fi
 
     if [ -f "$BT_CONF" ] && grep -q 'nixos-conf/scripts/debian-system-services.sh' "$BT_CONF"; then
         ok "bluetooth: managed config present (Experimental/FastConnectable/AutoEnable)"
@@ -155,8 +170,9 @@ if ! apt-get install -y "${APT_PACKAGES[@]}"; then
 fi
 
 msg "enabling system services"
+unit_files=$(systemctl list-unit-files --type=service --no-legend 2>/dev/null || true)
 for svc in "${SYSTEM_SERVICES[@]}"; do
-    if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^$svc"; then
+    if grep -q "^$svc" <<<"$unit_files"; then
         if systemctl enable --now "$svc" >/dev/null 2>&1; then
             ok "$svc enabled"
         else
@@ -166,6 +182,36 @@ for svc in "${SYSTEM_SERVICES[@]}"; do
         warn "$svc unit not found; skipped"
     fi
 done
+
+# systemd-coredump: the noctalia shell died without leaving any evidence on
+# 2026-10-06. Enable core collection and pin external storage so `coredumpctl`
+# can attribute the next one. The package's own sysctl sets core_pattern; it is
+# normally applied at boot, so re-run systemd-sysctl after installing it.
+mkdir -p /etc/systemd/coredump.conf.d
+if ! grep -q 'Managed by nixos-conf/scripts/debian-system-services.sh' "$COREDUMP_CONF" 2>/dev/null; then
+    cat > "$COREDUMP_CONF" <<'EOF'
+# Managed by nixos-conf/scripts/debian-system-services.sh
+# Keep full cores on disk so `coredumpctl` can attribute the next silent
+# session crash (see docs/gear5th-support.md, "the session lost all UI").
+[Coredump]
+Storage=external
+Compress=yes
+EOF
+    ok "wrote $COREDUMP_CONF (Storage=external)"
+else
+    ok "$COREDUMP_CONF already managed"
+fi
+if [ -n "$(systemctl list-unit-files --no-legend 'systemd-coredump.socket' 2>/dev/null || true)" ]; then
+    if systemctl enable --now systemd-coredump.socket >/dev/null 2>&1; then
+        ok "systemd-coredump.socket enabled"
+    else
+        warn "could not enable systemd-coredump.socket"
+    fi
+else
+    warn "systemd-coredump.socket not found; skipped"
+fi
+systemctl restart systemd-sysctl.service >/dev/null 2>&1 || true
+ok "core_pattern: $(cat /proc/sys/kernel/core_pattern 2>/dev/null)"
 
 # Bluetooth settings ported from the NixOS host config.
 if [ -f "$BT_CONF" ] && ! grep -q 'nixos-conf/scripts/debian-system-services.sh' "$BT_CONF"; then

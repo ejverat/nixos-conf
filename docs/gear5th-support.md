@@ -40,7 +40,7 @@ breaks.
 | `scripts/bootstrap-gear5th.sh` | one-shot bootstrap (clone → build → shell → activate → DM) |
 | `scripts/install-niri-session.sh` | GDM session file for niri + enable GDM/bluetooth |
 | `scripts/fix-pam-unix-chkpwd.sh` | setuid PAM helper so the lock screen accepts the password |
-| `scripts/debian-system-services.sh` | Debian system layer: apt packages, systemd services, firmware, Bluetooth (`--check` is read-only) |
+| `scripts/debian-system-services.sh` | Debian system layer: apt packages, systemd services, firmware, Bluetooth, systemd-coredump (`--check` is read-only) |
 | `scripts/seed-gentle-profiles.sh` | seeds the gentle-profile routing profiles from the vendored copies (no SSH/network needed between hosts) |
 | `scripts/fix-opengl-driver.sh` | recreate the `/run/opengl-driver` tree nixpkgs expects |
 | `scripts/diag-gear5th.sh` | read-only fact collector for session/GPU/seat issues |
@@ -276,10 +276,29 @@ the profile; never `npm i -g` anything on this machine (the nix profile owns
 ```sh
 ls -l ~/.config/noctalia/settings.json        # must exist (symlink)
 command -v wl-paste cliphist                  # clipboard helpers wanted by settings
+systemctl --user status noctalia-shell        # the shell is a systemd user unit
 ```
 The repo file `modules/features/noctalia.json` holds the settings; the
 runtime file is the raw settings object. If only clipboard features are dead,
-install helpers (apt or nix); if the launcher itself is dead, report.
+install helpers (apt or nix).
+
+If **every** panel is dead — no bar, and the launcher and lock both do
+nothing — the shell process is gone. niri starts the first copy from its own
+`spawn-at-startup`; `noctalia-shell.service` is a supervisor that revives the
+shell a few seconds after it dies. It does not own the launch, because
+removing the spawn would change `niri.service` and make a live switch restart
+the compositor:
+
+```sh
+systemctl --user status noctalia-shell          # the supervisor's state
+journalctl --user -u noctalia-shell -e           # its log
+pkill -f 'quickshell -p .*noctalia-shell'        # the supervisor revives it
+coredumpctl list quickshell                     # the crash, if coredumps are on
+```
+
+`coredumpctl` needs `systemd-coredump`, which the Debian system layer installs
+(`./scripts/debian-system-services.sh`); without it a silent crash leaves no
+trace.
 
 ### 6.7 wezterm has no window
 Its config sets `config.enable_wayland = false`, so it needs XWayland —

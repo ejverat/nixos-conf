@@ -31,7 +31,17 @@
       };
 
       systemd.user.services.kanshi = {
-        Unit.Description = "Kanshi output management daemon";
+        Unit = {
+          Description = "Kanshi output management daemon";
+          # The config is optional by design: a host that leaves
+          # nixosConf.kanshi.config unset (gear5th) keeps it user-owned, and may
+          # never create it. Without this guard kanshi exits with "failed to
+          # parse config file" and Restart=on-failure loops every 5s forever
+          # (observed: restart counter 16022). ConditionPathExists makes the
+          # unit *skip* instead of *fail* when the file is absent, so the
+          # daemon starts normally once the user creates the config.
+          ConditionPathExists = "%h/.config/kanshi/config";
+        };
         Service = {
           # No -c: kanshi reads $XDG_CONFIG_HOME/kanshi/config (i.e.
           # ~/.config/kanshi/config), which is what xdg.configFile writes or the
