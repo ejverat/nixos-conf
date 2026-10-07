@@ -34,6 +34,15 @@ print('noctalia.json synced from runtime settings')
 	flake.homeModules.noctalia = { pkgs, lib, flakeSelf, ... }: let
 		myNoctalia = flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNoctalia;
 		runtimeSettings = (lib.importJSON ../features/noctalia.json).settings;
+
+		# Relaunches the shell niri spawned after it dies (Restart=always keeps it
+		# going, bounded by systemd's start limit). Owning the FIRST launch would
+		# change niri.service and make a live switch restart the compositor.
+		noctaliaSupervisor = pkgs.writeShellScript "noctalia-shell-supervisor" ''
+			sleep 5
+			until ! ${pkgs.procps}/bin/pgrep -f 'bin/quickshell -p .*/noctalia-shell' >/dev/null 2>&1; do sleep 3; done
+			exec "${lib.getExe myNoctalia}"
+		'';
 	in {
 		home.packages = [ myNoctalia ];
 		xdg.configFile."noctalia/settings.json" = {
@@ -47,5 +56,22 @@ print('noctalia.json synced from runtime settings')
 		# process niri spawns (noctalia) inherit it. home.sessionVariables would
 		# land only in the shell profile, which a DM session never sources.
 		xdg.configFile."environment.d/noctalia-pam.conf".text = "NOCTALIA_PAM_SERVICE=noctalia-lock\n";
+
+		# Revives the shell after a crash. The first copy still comes from niri's
+		# spawn-at-startup (see noctaliaSupervisor above); this unit never races the
+		# compositor into a second bar.
+		systemd.user.services.noctalia-shell = {
+			Unit = {
+				Description = "Noctalia shell supervisor";
+				After = [ "graphical-session.target" ];
+				PartOf = [ "graphical-session.target" ];
+			};
+			Service = {
+				ExecStart = "${noctaliaSupervisor}";
+				Restart = "always";
+				RestartSec = "2s";
+			};
+			Install.WantedBy = [ "graphical-session.target" ];
+		};
 	};
 }
