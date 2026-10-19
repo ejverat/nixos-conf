@@ -430,12 +430,67 @@ file:
 sudo apt install greetd tuigreet
 ```
 
+### 6.13 `home-manager switch` kills the session (niri restarts)
+
+**Symptom:** during a switch the screen goes black and the machine drops to a
+tty; the journal shows `Stopping niri.service`, `quitting due to receiving
+signal SIGTERM` and `Stopped target graphical-session.target`, and the tmux
+panes die with it.
+
+**Cause:** `niri.service` is a systemd user unit with
+`BindsTo=graphical-session.target`, and Home Manager applies unit changes with
+`sd-switch`. Its default method for an active changed service is stop-start.
+The unit is a symlink to the config-baked package unit, so any rebuild that
+moves the niri wrapper (a keybind, `spawn-at-startup`, the noctalia path)
+changes `ExecStart` and triggers that restart. A stale
+`~/.local/state/home-manager/gcroots/current-home` makes it repeat on **every**
+switch: Home Manager diffs against that root, not the profile symlink, and an
+activation killed by the restart never renames it.
+
+**Fix in the repo (already applied):** `modules/features/niri.nix` writes
+`~/.config/systemd/user/niri.service.d/overrides.conf` with
+`[Unit] X-SwitchMethod=keep-old`. sd-switch reads the directive from the new
+unit file and merges that drop-in, so it leaves the running compositor alone;
+the new wrapper applies at the next session start, the only sane moment for a
+compositor.
+
+Diagnostics and repair:
+
+```sh
+# Is the directive reaching sd-switch? Compare the generation that is active
+# against the one you are about to activate.
+OLD=$(readlink -f ~/.local/state/home-manager/gcroots/current-home)
+NEW=$(nix build --no-link --print-out-paths ~/nixos-conf#homeConfigurations.gear5th.activationPackage)
+~/.nix-profile/bin/sd-switch --dry-run --user \
+  --old-units "$OLD/home-files/.config/systemd/user" \
+  --new-units "$NEW/home-files/.config/systemd/user"
+# Expected: "Keeping old units: niri.service" and no niri restart.
+
+# Stale baseline? These two must resolve to the same store path before you
+# switch; if they differ, the next switch diffs against the wrong generation.
+readlink -f ~/.local/state/home-manager/gcroots/current-home
+readlink -f ~/.local/state/nix/profiles/home-manager
+
+# Repair a stale baseline to the generation that is actually active.
+GC=~/.local/state/home-manager/gcroots
+ln -s "$(readlink -f ~/.local/state/nix/profiles/home-manager)" "$GC/.current-home.tmp" \
+  && mv -T "$GC/.current-home.tmp" "$GC/current-home"
+```
+
+If a switch is still expected to disturb the session, run it from **tty2**: the
+portable zsh only autostarts niri on tty1, so tty2 is a clean shell where the
+activation cannot be killed mid-flight.
+
 ## 7. Updating (routine)
 
 ```sh
 cd ~/nixos-conf && git pull --ff-only
 home-manager switch --flake ~/nixos-conf#gear5th
 ```
+Safe from inside the session as far as niri goes: `niri.service` carries
+`X-SwitchMethod=keep-old` (see 6.13), so the compositor is only replaced at the
+next session start. The first switch after a killed activation can still diff
+against a stale `gcroots/current-home`; check it when in doubt (6.13).
 If `git pull` refuses (diverged), do **not** force: report. If the build
 fails after an update, run `nix flake check` and report the error + hashes.
 

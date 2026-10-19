@@ -44,6 +44,36 @@
 			"${flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri}/share/systemd/user/niri.service";
 		xdg.configFile."systemd/user/niri-shutdown.target".source =
 			"${flakeSelf.packages.${pkgs.stdenv.hostPlatform.system}.myNiri}/share/systemd/user/niri-shutdown.target";
+
+		# A `home-manager switch` must never restart the running compositor.
+		#
+		# The unit above is a symlink to the config-baked package unit, so any
+		# rebuild that moves the niri wrapper (a changed keybind, a changed
+		# spawn-at-startup, a moved noctalia path) changes ExecStart. Home Manager
+		# applies unit changes with sd-switch, whose default for an active changed
+		# service is stop-start; because niri.service is bound to the session
+		# (`BindsTo=graphical-session.target`), that stopped the compositor and the
+		# whole session, dropping the user to a tty (incidents recorded in
+		# odd/tasks/gear5th-session-gtk.md and odd/tasks/session-safe-switch.md).
+		#
+		# sd-switch 0.6.4 reads `[Unit] X-SwitchMethod=` from the NEW unit file
+		# (src/lib.rs calls new_unit_file.switch_method()) and also merges a
+		# `<unit>.d/*.conf` drop-in that lives next to it (src/unit_file.rs
+		# collect_overrides). `keep-old` means "leave the active unit alone", which
+		# is the only correct method for a compositor: it cannot be hot-swapped,
+		# and the new wrapper takes effect at the next session start.
+		#
+		# The drop-in lands in the generation's home-files, exactly the directory
+		# sd-switch diffs; the unit itself stays a symlink to the package, so
+		# upstream's unit definition is never duplicated or forked. Real systemd
+		# also reads this drop-in and ignores the unknown key, the same way it
+		# ignores the directives Home Manager writes into its own units.
+		#
+		# Written as one escaped line on purpose: Nix's indented-string stripping
+		# counts only spaces, so a `''` block here would ship the leading tabs into
+		# the unit fragment.
+		xdg.configFile."systemd/user/niri.service.d/overrides.conf".text =
+			"[Unit]\nX-SwitchMethod=keep-old\n";
 	};
 
 	perSystem = { config, pkgs, lib, self', ... }: 
