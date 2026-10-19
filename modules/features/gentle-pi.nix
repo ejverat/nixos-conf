@@ -6,21 +6,21 @@
   piActivation = import ../lib/_pi-activation.nix;
   gentleProfile = import ../lib/_gentle-profile.nix;
 
-  # gentle-ai release pinned by gentle-pi v3.7.0 itself
+  # gentle-ai release pinned by gentle-pi v4.3.0 itself
   # (scripts/gentle-ai-installer.mjs, INSTALLER_VERSION). The binary is a
   # static Go executable, so the official signed release runs fine on NixOS
   # and passes gentle-pi's strict package-local integrity verification.
   #
-  # This version may never drift from the gentle-pi tag above: the installer
-  # fails closed with GENTLE_AI_VERSION_MISMATCH when the binary does not report
+  # This version may never drift from the gentle-pi tag: the installer fails
+  # closed with GENTLE_AI_VERSION_MISMATCH when the binary does not report
   # INSTALLER_VERSION, and `pi install` would otherwise re-download it.
-  gentleAiVersion = "3.7.0";
-  gentleAiAsset = "gentle-ai_3.7.0_linux_amd64.tar.gz";
+  gentleAiVersion = "4.2.0";
+  gentleAiAsset = "gentle-ai_4.2.0_linux_amd64.tar.gz";
   # Both digests are transcribed from that release's own asset table
   # (`asset(name, sha256, binarySha256, executable)`) and were re-derived from
   # the downloaded archive before pinning.
-  gentleAiAssetSha256 = "a730a61a43758f04cc9a4ac644945cc0e8652a1e33d6997a0a3d3f0044d2fff5";
-  gentleAiBinarySha256 = "002d09fd2b9628a29986a660c1f51f8a5042ff7fd54c8ab15b7b27de96c6cccc";
+  gentleAiAssetSha256 = "552c1642fd10f5d96cfe9bb1cc3b66b30eb47d3074cc7ca0559b598eb086defc";
+  gentleAiBinarySha256 = "9212c7b16ea9abfe93e3a16b29d8390e7762b5c07730cf05df1f3e7892ff96a4";
 in {
   flake.nixosModules.gentle-pi = { config, pkgs, lib, ... }: let
     system = pkgs.stdenv.hostPlatform.system;
@@ -105,8 +105,8 @@ in {
 
     # gentle-profile is this repository's own routing tool, vendored in
     # dotfiles/pi-gentle-ai/ and seeded here. Neither the gentle-pi package nor
-    # gentle-ai ships it: the string appears nowhere in gentle-pi 3.7.0, gentle-ai
-    # 3.7.0 exposes no profile command in `--help`, and `gentle-ai sync` in a fresh
+    # gentle-ai ships it: the string appears nowhere in gentle-pi 4.3.0, gentle-ai
+    # 4.2.0 exposes no profile command in `--help`, and `gentle-ai sync` in a fresh
     # home writes only state/telemetry. What the Nix package does ship is the
     # runtime binary and the pi extension, so a fresh host has nothing to link
     # (that is what happened on gear5th). Seed the vendored copy when it is
@@ -146,7 +146,7 @@ in {
 
       src = pkgs.fetchurl {
         url = "https://github.com/Gentleman-Programming/gentle-ai/releases/download/v${gentleAiVersion}/${gentleAiAsset}";
-        hash = "sha256-pzCmGkN1jwTMmkrGRJRcwOhlKh4z1pl6Cj0/AETS//U=";
+        hash = "sha256-VSwWQv0Q9dls/puxzDtmsw60fTB0zHygVZtZjrCG3vw=";
       };
 
       sourceRoot = ".";
@@ -161,7 +161,7 @@ in {
   in {
     packages.gentle-pi = pkgs.stdenv.mkDerivation (finalAttrs: {
       pname = "gentle-pi";
-      version = "3.7.0";
+      version = "4.3.0";
 
       # The upstream GitHub repository was renamed to `gentle-shell` (the npm
       # package is still `gentle-pi`, and gentle-pi's own self-detection paths
@@ -173,7 +173,7 @@ in {
         owner = "Gentleman-Programming";
         repo = "gentle-pi";
         tag = "v${finalAttrs.version}";
-        hash = "sha256-QjnglcZJpX4XnQ7MUxyVbszg2RMYRiJsZXdcCN68rxY=";
+        hash = "sha256-rmuIk4IudViiz4nDJ646lCOHLfHIAboKmH/RdIqkpf4=";
       };
 
       __structuredAttrs = true;
@@ -183,10 +183,10 @@ in {
         inherit (finalAttrs) pname version src;
         pnpm = pnpm11.pnpm;
         fetcherVersion = 4;
-        # Byte-identical to the 3.2.0 pin: pnpm-lock.yaml did not change between
-        # v3.2.0 and v3.7.0 (same 243 resolutions, same two runtime deps), so the
-        # resolved dependency set is the same derivation input.
-        hash = "sha256-MTi1ZLE4pX4YgDlxnvy3Zo7yZQT6gquYISJSIae2eAk=";
+        # Recomputed for v4.3.0: its pnpm-lock.yaml (lockfileVersion 9.0) is not
+        # the tree the v3.x pin resolved, so the old hash no longer matches and
+        # the dependency set moved from pi-tui + pi-pretty to pi-pretty alone.
+        hash = "sha256-7/qFx9LTDo717xj+iojzyx2gXiUW20B8CmTGN9yO9NI=";
       };
 
       nativeBuildInputs = [
@@ -205,35 +205,44 @@ in {
       installPhase = ''
         runHook preInstall
 
-        # Same file set as the published npm tarball (package.json "files").
-        # `bin/` was missing here since before the 3.2.0 pin even though the
-        # tarball ships it, so `gentle-shell` — the launcher package.json
-        # declares — was never installed. Keep this list in step with "files".
+        # Same file set as the published npm tarball. v4.3.0 package.json
+        # "files" is: assets bin contracts docs extensions lib prompts runtime
+        # scripts skills tests themes README.md, and npm always adds
+        # package.json and LICENSE. Keep this list in step with "files":
+        # `bin/` holds `gentle-shell`, the launcher package.json declares.
         mkdir -p $out
         cp -r assets bin contracts docs extensions lib prompts runtime scripts skills tests themes package.json README.md LICENSE $out/
 
-        # Runtime deps only (@earendil-works/pi-tui, @heyhuynhgiabuu/pi-pretty).
+        # Runtime deps only: v4.3.0 declares a single non-peer dependency,
+        # @heyhuynhgiabuu/pi-pretty.
         pnpm prune --prod --ignore-scripts
         # prune leaves stale .bin shims pointing at removed devDependencies;
         # pi imports libraries only, it never uses the .bin shims.
         rm -rf node_modules/.bin
         cp -r node_modules $out/
 
-        # pnpm auto-installs the optional @earendil-works/pi-coding-agent peer,
-        # which parks a second, stale copy of the SDK next to the Nix-pinned pi
-        # (0.85.1 against 0.87.1 at this pin). Drop it so the pinned pi stays the
-        # single source of truth:
+        # v3.7.0 had @earendil-works/pi-tui as a real dependency; v4.3.0 declares
+        # only @heyhuynhgiabuu/pi-pretty and makes pi-coding-agent, pi-ai, pi-tui
+        # optional peers (plus a hard typebox peer). pnpm auto-installs those
+        # peers, so a second copy of the SDK lands next to the Nix-pinned pi
+        # (both resolve to 1.2.0 today, but only the nixpkgs-pi pin is
+        # maintained). Drop the SDK copy so the pinned pi stays the single
+        # source of truth:
         #
-        #   - Nothing needs it at runtime. pi aliases that specifier to its own
-        #     copy for every extension load (dist/core/extensions/loader.js,
-        #     getAliases), which is how the extensions/*.ts imports resolve.
-        #   - gentle-shell's resolveBundledCli() is the only other consumer, and
-        #     it resolves `<pkg>/package.json`, which the package's exports map
-        #     does not expose -- so it already throws
-        #     ERR_PACKAGE_PATH_NOT_EXPORTED and falls back to `pi` on PATH.
-        #     That fallback is what we want, but it holds by accident: adding
-        #     "./package.json" to upstream exports would silently make the
-        #     launcher prefer a stale pi. Removing the copy makes it structural.
+        #   - Nothing needs it at runtime. pi aliases @earendil-works/* to its
+        #     own copies for every extension load (dist/core/extensions/
+        #     loader.js, getAliases), which is how the extensions/*.ts imports
+        #     resolve; the auto-installed pi-tui/pi-ai/pi-agent-core copies are
+        #     likewise shadowed and unused.
+        #   - gentle-shell's resolveBundledCli() (bin/gentle-shell.mjs) is the
+        #     one real consumer: it runs
+        #     import.meta.resolve("@earendil-works/pi-coding-agent") and, when
+        #     that resolves, launches <that copy>/dist/bundle/cli.js under node
+        #     in preference to `pi` on PATH (resolvePiRuntime in
+        #     lib/gentle-shell-launcher.ts). Keeping the copy would therefore
+        #     let a flake-unpinned pi shadow the pinned one. Removing it makes
+        #     the resolution throw ERR_MODULE_NOT_FOUND and the launcher fall
+        #     back to the pinned `pi` on PATH, which is what we want.
         rm -rf $out/node_modules/@earendil-works/pi-coding-agent
 
         # Package-local gentle-ai runtime, hash-identical to the one the

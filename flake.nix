@@ -26,7 +26,7 @@
     };
 
     # Pinned separately so pi-coding-agent stays new enough for gentle-pi
-    # (requires >= 0.85.1) without updating the whole system nixpkgs.
+    # (v4.3.0 requires pi >= 1.2.0) without updating the whole system nixpkgs.
     nixpkgs-pi = {
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
